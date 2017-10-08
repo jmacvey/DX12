@@ -14,6 +14,14 @@ struct Vertex {
 	XMFLOAT4 Color;
 };
 
+struct VPosData {
+	XMFLOAT3 Pos;
+};
+
+struct VColorData {
+	XMFLOAT4 Color;
+};
+
 struct ObjectConstants {
 	XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
 };
@@ -43,6 +51,9 @@ private:
 	void BuildConstantBuffers();
 	void BuildRootSignature();
 	void BuildShadersAndInputLayout();
+	void BuildBoxIndices();
+	void BuildBoxPositions();
+	void BuildBoxColors();
 	void BuildBoxGeometry();
 	void BuildPSO();
 
@@ -55,7 +66,13 @@ private:
 	
 	// geoemetry data
 	unique_ptr<MeshGeometry> mBoxGeo = nullptr;
-	
+	unique_ptr<MeshGeometry> mBoxColorData = nullptr;
+	unique_ptr<MeshGeometry> mBoxPosData = nullptr;
+
+	// index data
+	std::array<std::uint16_t, 36> mBoxIndices;
+	UINT mibByteSize;
+
 	// shader byte code
 	ComPtr<ID3DBlob> mvsByteCode = nullptr;
 	ComPtr<ID3DBlob> mpsByteCode = nullptr;

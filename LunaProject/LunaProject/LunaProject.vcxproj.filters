@@ -64,6 +64,9 @@
     <Filter Include="Header Files\Shaders">
       <UniqueIdentifier>{65cc1052-cf52-41df-a0f7-43644dab9d57}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Exercises">
+      <UniqueIdentifier>{e4ba8699-b617-43dd-a0e8-cd93e4f8b542}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -158,6 +161,9 @@
     </ClInclude>
     <ClInclude Include="BoxApp.h">
       <Filter>Header Files\Apps</Filter>
+    </ClInclude>
+    <ClInclude Include="6131.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

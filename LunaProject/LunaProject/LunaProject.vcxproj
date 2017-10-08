@@ -165,6 +165,7 @@
     <Text Include="3.CreateVertexBufferView.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="6131.h" />
     <ClInclude Include="BoxApp.h" />
     <ClInclude Include="D3DApp.h" />
     <ClInclude Include="d3dUtil.h" />
