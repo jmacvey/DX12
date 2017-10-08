@@ -1,0 +1,24 @@
+From 2. VertexBuffer --
+
+Create a vertex buffer view to the vertex buffer resource using a D3D12_VERTEX_BUFFER_VIEW_DESC structure
+
+typedef struct D3D12_VERTEX_BUFFER_VIEW 
+{
+	D3D12_GPU_VIRTUAL_ADDRESS BufferLocation;
+	UINT SizeInBytes;
+	UINT StrideInBytes;
+} D3D12_VERTEX_BUFFER_VIEW;
+
+1. BufferLocation -- Virtual address of the vertex buffer we want to create a view to
+	* Can use ID3D12Resource::GetGPUVirtualAddress method to get this
+
+2. SizeInBytes -- The number of bytes to view in the vertex buffer starting from BufferLocation
+
+3. StrideInBytes:  The size of each vertex element, in bytes
+
+
+D3D12_VERTEX_BUFFER_VIEW vbView = {};
+vbView.D3D12_GPU_VIRTUAL_ADDRESS = vertexBufferGPU.GetGPUVirtualAddress();
+vbView.SizeInBytes = vbByteSize;
+vbView.StrideInBytes = sizeof(Vertex);
+

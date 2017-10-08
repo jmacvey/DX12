@@ -1,0 +1,24 @@
+-- From CreatingConstantBuffers
+
+Constant buffer is created wiht the heap type D3D12_HEAP_TYPE_UPLOAD, we can upload
+data from the CPU to the constant buffer resource.  To do this, we first obtain a pointer
+to the resource data:
+
+ComPtr<ID3D12Resource> mUploadBuffer;
+BYTE* mMappedData = nullptr;
+
+mUploadBuffer->Map(0, nullptr, reinterpret_vast<void**>(&mMappedData));
+// 1. Index identifying the subresource to map (buffer only has itself as index, so we put 0)
+// 2. Optional pointer to a D3D12_RANGE structure that describes the range of memory to map (null specifies entire resource)
+// 3. Third parameter is a storage value for map (stores the pointer to the memory in mMappedData)
+
+To copy data from system memory to the constant buffer, just do memcpy
+
+memcpy(mMappedData, &data, dataSizeInBytes);
+
+When done, unmap it before releasing the memory
+if(mUploadBuffer != nullptr) {
+	mUploadBuffer->Unmap(0, nullptr);
+}
+
+mMappedData = nullptr;

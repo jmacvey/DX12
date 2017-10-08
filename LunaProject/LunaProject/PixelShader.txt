@@ -1,0 +1,21 @@
+During rasterization vertex attributes output from the vertex shader or geometry shader are interpolated across
+the pixels of a triangle.  The interpolated values are then fed into the pixel shader as input.
+
+Pixel shader: Function is executed for each pixel fragment.  Given the pixel shader input, the job of the pixel shader is to
+calculate a color value for the pixel fragment.
+
+Pixel fragment: output from the pixel shader (may not become an actual pixel after depth test, etc.)...
+
+Potential Hardware Optimization: early-z rejection; depth test done first and if pixel fragment is determined hidden, it never makes it
+to the shader.  
+
+float PS(float4 posH : SV_POSITION, float4 color : COLOR ) : SV_TARGET {
+	return color;
+}
+
+// alternative (given vertex shader):
+
+float4 PS(VertexOut pin) : SV_TARGET
+{
+	return pin.Color;
+}

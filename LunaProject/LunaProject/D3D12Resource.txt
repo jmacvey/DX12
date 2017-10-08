@@ -1,0 +1,43 @@
+D3D12 Resources describes the resources to D3D:
+
+typedef struct D3D12_RESOURCE_DESC {
+	D3D12_RESOURCE_DIMENSION Dimension;
+	UINT64 Alignment;
+	UINT64 Width;
+	UINT Height;
+	UINT16 DepthOrArraySize;
+	UINT16 MipLevels;
+	DXGI_FORMAT Format;
+	DXGI_SAMPLE_DESC SampleDesc;
+	D3D12_TEXTURE_LAYOUT LAyout;
+	D3D12_RESOURCE_MISX_FLAG MiscFlags;
+} D3D12_RESOURCE_DESC;
+
+1. Dimension -- Dimension of the Resource -- one of the following enumerated types:
+
+enum D3D12_RESOURCE_DIMENSION {
+	D3D12_RESOURCE_DIMENSION_UNKNOWN = 0,
+	D3D12_RESOURCE_DIMENSION_BUFFER = 1,
+	D3D12_RESOURCE_DIMENSION_TEXTURE1D = 2,
+	D3D12_RESOURCE_DIMENSION_TEXTURE2D = 3,
+	D3D12_RESOURCE_DIMENSION_TEXTURE3D = 4
+} D3D12_RESOURCE_DIMENSION;
+
+2. Width - The width of the texture in texels.  For buffers, this is the number of bytes in the buffer
+
+3. Height - Height of th texture in texels
+
+4. DepthOrArraySize: The Depth of the texture in texels, or the texture array size (for 1D and 2D textures)
+
+5. Miplevels: The number of mipmap levels
+
+6. Format: A member of the DXGI_FORMAT enumerated type specifying the type of the texels
+
+7. SampleDesc: Number of multisamples and quality level. (4x MSAA uses as back buffer and depth buffer 4X bigger than the screen
+resolution in order to store color and depth/stencil information per subpixel).  MultiSampling settings used for DSV buffer must match
+the settings used for the render target.
+
+8. Layout: A member of the D3D12_TEXTURE_LAYOUT enumerated type that specifies the texture layout.  Can for now specify
+	D3D12_TEXTURE_LAYOUT_UNKNOWN
+
+9. MiscFlags: Miscellaneous resource flags.  For DSV buffers, specify D3D12_RESOURCE_MISC_DEPTH_STENCIL.

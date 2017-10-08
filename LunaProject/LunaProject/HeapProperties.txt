@@ -1,0 +1,57 @@
+-- From D3D12Resource
+
+GPU resources live in heaps, which are blocks of GPU memory with certain properties.  The 
+
+ID3D12::CreateCommittedResource method creates and commits a resource to a particular heap with the props we specify.
+
+HRESULT ID3D12Device::CreateCommittedResource(
+	const D3D12_HEAP_PROPERTIES *pHeapProperties,
+	D3D12_HEAP_MISC_FLAG HeapMiscFlags,
+	const D3D12_RESOURCE_DESC *pResourceDesc,
+	D3D12_RESOURCE_USAGE initialResourceState,
+	const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+	REFIID riidResource,
+	void **ppvResource
+);
+
+
+typedef struct D3D12_HEAP_PROPERTIES {
+	D3D12_HEAP_TYPE		Type;
+	D3D12_CPU_PAGE_PROPERTIES CPUPageProperties,
+	D3D12_MEMORY_POOL	MemoryPoolPreference,
+	UINT				CreationNodeMask,
+	UINT				VisibleNodeMask
+};
+
+1. pHeapProperties
+	- properties of the heap we want to commit the resource to.  Some of the properties ar efor advanced usage.  
+
+	D3D12_HEAP_TYPE:
+		
+		D3D12_HEAP_TYPE_DEFAULT: Default heap.  Where we commit resources solely accessed by the GPU.  E.g. DSV buffer.
+		D3D12_HEAP_TYPE_UPLOAD: Upload heap.  Upload data from CPU to GPU
+		D3D12_HEAP_TYPE_READBACK: Read-back heap.   Read data from GPU to CPU
+		D3D12_HEAP_TYPE_CUSTOM: For advanced usage scenarios
+
+
+2. HeapMiscFlags:  Additional flags about heap we want to commit the resource to.  Usually D3D12_HEAP_MISC_NONE
+
+3. pResourceDesc: Pointer to a D3D12_RESOURCE_DESC instance describing the resource we want to create
+
+4. InitialResourceState: Resources has a current usage state.  Usually D3D12_RESOURCE_USAGE_INITIAL, then transition to D3D12_RESOURCE_USAGE_DEPTH
+
+5. pOptimizedClearValue:  Pointer to a D3D12_CLEAR_VALUE object that describes an optimized value for clearing resources.  Clear calls that match the
+optimized clear value can potentially be faster than clear calls that do not match the optimized clear value.
+
+struct D3D12_CLEAR_VALUE {
+	DXGI_FORMAT Format;
+	union {
+		FLOAT Color [ 4 ];
+		D3D12_DEPTH_STENCIL_VALUE DepthStencil;
+	};
+} D3D12_CLEAR_VALUE;
+
+6. riidResource: The COM ID of the ID3D12Resource interface we want to obtain a pointer to
+
+7. ppvresource:  Returns a pointer to a ID3D12Resource that represents the newly created resource
+

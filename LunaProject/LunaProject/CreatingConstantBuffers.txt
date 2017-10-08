@@ -1,0 +1,60 @@
+(p224.6.6.1)
+
+Constant Buffer is another GPU resource (ID3D12Resource) whose data contents can be referenced in shader programs.
+
+Example shader buffer:
+
+cbuffer cbPerObject : register(b0) {
+	float4x4 gWorldViewProj;
+}
+
+The constant buffer stores a single 4x4 matrix called gWorldViewProj, representing homogeneous coordinate space, or
+world * view * projection matrix
+
+If camera is moving every frame, the constant buffer needs to be updated with new view matrix every frame.  Create constant bufers
+in an upload heap rather than default heap so CPU can update contents.
+
+------------------------
+
+Need multiple constant buffers of same type; cbPerObject stores constants that vary per object.  If we have n objects,
+then we need n constant buffers of that type.  
+
+
+example:
+
+// every object will have its own constants
+struct ObjectConstants {
+	DirectX::XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
+};
+
+UINT elementByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+
+// the constant buffer will hold all the object constants
+ComPtr<ID3D12Resource> mUploadCBuffer;
+
+// allocate enough memory for them all
+device->CreateCommittedResource(
+	&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+	D3D12_HEAP_FLAG_NONE,
+	&CD3DX12_RESOURCE_DESC::Buffer(mElementsByteSize * NumElements),
+	D3D12_RESOURCE_STATE_GENERIC_READ,
+	nullptr,
+	IID_PPV_ARGS(&mUploadCBuffer)
+);
+
+// mUploadCBuffer stores array of constant buffers of type ObjectConstants (with byte padding).  
+
+When drawing an object, we bind a constant buffer view (CBV) oto subregion of the buffer that stores the constants for the object.  
+
+--------------------------------------------------------------
+
+UINT d3dUtil::CalcConstantBufferSize(UINT byteSize) {
+	// constant buffers must be a multiple of the minimum allocation size
+	// this is usually 256 bytes
+	// So round up to nearest multiple of 256 and mask off lower two bytes storing all bits less than 256
+	// (300 + 255) & ~255
+	// = 555 & ~255
+	// = 0x022B & !0x00ff
+	// = 0x0200 <- 512
+	return (byteSize + 255) & ~255;
+}

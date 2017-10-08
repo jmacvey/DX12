@@ -1,0 +1,12 @@
+--- From VertexShader.txt (content start p219.6.4.1)
+
+Linking (seems extremely loose?) between attributes of vertices fed into the pipeline via the
+	D3D_INPUT_LAYOUT_DESC
+
+When we create an ID3D12PipelineState object, we must specify both the input layout description and vertex shader.  Direct3D will 
+then validate the input layout description and vertex shader are compatible.
+
+Vertex data and input signature do not need to match exactly.  The vertex data just needs to provide all the information the 
+vertex shader expects. The vertex data can, therefore, hold additional data.
+
+There's also loose typing, so the vertex shader CAN reinterpret data like floats to ints when the types don't match... hmmmm...

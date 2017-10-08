@@ -1,0 +1,29 @@
+-- From 4. Bind View to Pipeline
+
+
+Once view is bound, we draw the vertices by calling the
+
+ID3D12CommandList::DrawInstanced(
+	UINT VertexCountPerInstance,
+	UINT InstanceCount,
+	UINT StartVertexLocation,
+	UINT StartInstanceLocation
+);
+
+1. VertexCountPerInstance - The number of vertices to draw (per instance)
+
+2. InstanceCount - Used for instancing (set to 1 for now )
+
+3. StartVertexLocation - Specifies index of the first vertex in the vertex buffer to begin drawing
+
+4. StartInstanceLocation - Used for instancing (set to 0 for now)
+
+
+Note before crawing, you need to set the primitive topology to know what kind of primitives the vertices define:
+
+Example:
+
+ID3D12GraphicsCommandList::IASetPrimitiveTopology
+----
+
+cmdList->IASetPrimitiveTopology(D#D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

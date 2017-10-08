@@ -1,0 +1,18 @@
+From 3.CreateVertexBufferView
+
+-- After vertex and corresponding descriptor (view) have been created, we can bind it to the input slot of the pipeline to feed the vertices
+to the input assembler stage of the pipeline.  Done with following:
+
+void ID3D12GraphicsCommandList::IASetVertexBuffers(
+	UINT StartSlot,
+	UINT NumBuffers,
+	const D3D12_VERTEX_BUFFER_VIEW *pViews
+);
+
+1. StartSlot - The input slot to start binding vertex buffers to [0-15],
+2. NumBuffers - The number of vertex buffers we are binding to the input slots
+	If start slot has index k and binding n buffers, then binding buffers to input slots k ... k + n - 1
+3. pViews - Pointer to first element in vertex buffer view array
+
+
+// Vertex buffer will stay bound to an input slot until it's changed.

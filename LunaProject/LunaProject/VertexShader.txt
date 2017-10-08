@@ -1,0 +1,67 @@
+Example shader:
+
+// global world view projection matrix lives in constant buffer
+cbuffer cbPerObject : register(b0) {
+	float4x4 gWorldViewProj;
+};
+
+void VS(
+	float3 iPosL : POSITION,
+	float4 iColor : COLOR,
+	out float4 oPosH : SV_POSITION,
+	out float4 oColor : COLOR) {
+	
+	// transform to homogenous clip space
+	oPosH = mul(float4(iPosL, 1.0f), gWorldViewProj);
+
+	// pass vertex color into pixel shader
+	oColor = iColor;
+}
+
+
+// float4(iPosL, 1.0f) is HLSL's equivalent syntax for float4(iPosL.x, iPosL.y, iPosL.z, 1.0) 
+// w param is 1.0 because a vertex is a point, not a vector.
+
+------------------------
+
+Shaders written in HLSL (High Level Shading Language).  Looks like VHDL impregnated C.
+
+The semantic names in the C++ element layout descriptions map to the corresponding inputs in the vertex shader
+
+Input signature -- the input to the vertex shader...
+
+SV_POSITION <- "System Value" position -> verrrryyy speciall.  Used to hold vertex position in homogeneous clip space.
+
+Need to attach the position semantic to the vertex position because GPU needs to be aware of it to perform clipping,
+depth testing, rasterization, etc.
+
+
+------------------------
+
+Can write the shader like this, which reads more like C (I'd probably write this way, but what's convention??)
+
+cbuffer cbPerObject : register(b0)
+{
+	float4x4 gWorldViewProj;
+};
+
+struct VertexIn
+{
+	float3 PosL : POSITION;
+	float4 Color : COLOR;
+};
+
+struct VertexOut
+{
+	float4 PosH : SV_POSITION;
+	float4 Color : COLOR;
+};
+
+VertexOut VS(VertexIn vin) {
+	VertexOut vOut;
+
+	vOut.PosH = mul(float4(vin.PosL, 1.0f), gWorldViewProj);
+	vOut.Color = vin.Color;
+
+	return vOut;
+}

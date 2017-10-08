@@ -1,0 +1,50 @@
+--- Indices and Index Buffers
+
+Similar to vertices, in order for the GPU to access an array of indices, they need to be placed in a buffer GPU resource.
+
+1. Create the index list in system memory
+2. Copy list from system memory to upload buffer, and then to default buffer
+3. Describe the index list using the D3D12_INDEX_BUFFER_VIEW:
+
+typedef struct D3D12_INDEX_BUFFER_VIEW {
+	D3D12_GPU_VIRTUAL_ADDRESS BufferLocation,
+	UINT SizeInBytes;
+	DXGI_FORMAT Format;
+} D3D12_INDEX_BUFFER_VIEW;
+
+		A. Buffer location - virtual address of vertex buffer resource ID3D12Resource::GetGPUVirtualAddress
+
+		B. SizeInBytes - The number of bytes to view in the index buffer starting from BufferLocation
+
+		C. Format - Format of the indices
+			A. DXGI_FORMAT_R16_UINT -- 16-bit scalar unsigned integer
+			B. DXGI_FORMAT_R32_UINT -- 32-bit scalar unsigned integer
+			- SHould use 16-bit scalar unless you need the extra bit range
+
+4. Bind the index list using D3D12GraphicsCommandList::IASetIndexBuffer(&ibv);
+
+5. Draw the indices using the ID3D12GraphicsCommandList::DrawIndexedInstance(
+	UINT CountPerInstance,
+	UINT InstanceCount,
+	UINT StartIndexLocaiton,
+	INT BaseVertexLocation,
+	UINT StartIndexLocation);
+
+		A. CountPerInstance - Number of indices to draw (per instance)
+
+		B. InstanceCount - USed for instancing (set to 1 for now)
+
+		C. StartIndexLocation - Index to an element in the index buffer that makes starting point
+
+		D. BaseVertexLocation - An integer value to be added to the indices used in this draw call before vertices are fetched
+
+		E. StartInstanceLocation: Used for instancing (set to 0 for now)
+
+
+The BaseVertexLocation parameter just provides a way that you can use the same buffer to draw multiple objects. 
+Say we have A:N, B:J, C:K, where A, B, and C are vertex lists and N, J, K are corresponding index lists.
+
+Optimal performance we store groups A, B, C and N, K, J in vertex buffer and index buffer, respectively.
+
+Then we can pass in the vertex start locations to the function to resolve the index to the correct vertex
+

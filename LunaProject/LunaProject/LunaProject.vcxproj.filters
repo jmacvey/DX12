@@ -1,0 +1,197 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\Timer">
+      <UniqueIdentifier>{898e340c-cc62-47a2-a728-e2e9e7c0b1b9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Timer">
+      <UniqueIdentifier>{bab8be78-a6ef-44db-9272-b13e7be0186b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Framework">
+      <UniqueIdentifier>{e362920d-60c3-41b4-9a6e-e6106adf4556}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Framework">
+      <UniqueIdentifier>{fa544276-73e0-45dc-9f03-ca097b902e8e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Apps">
+      <UniqueIdentifier>{f6091670-eb75-40b1-be58-6e5ec7d7db6c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Apps">
+      <UniqueIdentifier>{3f130a10-c080-4386-bc51-31d46ca92ec6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Notes">
+      <UniqueIdentifier>{80f6ee3a-4079-460f-88b6-7366503d73b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Notes\C6.Drawing">
+      <UniqueIdentifier>{ba822fb6-9dde-4bac-a95b-e742e76c4064}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Notes\C4.Initialization">
+      <UniqueIdentifier>{6aaa18a0-00be-4cd8-8569-e060a63acba8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Notes\C6.Drawing\Vertices">
+      <UniqueIdentifier>{e6f9af57-fb54-4ce7-9df1-989b0144abbd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Notes\C6.Drawing\Indices">
+      <UniqueIdentifier>{cf62c0c7-141e-4b8a-bf2f-f6c39c1ae6f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Notes\C6.Drawing\Shaders">
+      <UniqueIdentifier>{1f90e3fe-03bf-42c0-aa19-0a95c47d7a76}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Notes\C6.Drawing\ConstantBuffers">
+      <UniqueIdentifier>{84c518c3-0749-44e1-a867-8413e26038e1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\LunaUtility">
+      <UniqueIdentifier>{508c3db3-c15d-4dc6-834c-4f47633a6597}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\LunaUtility">
+      <UniqueIdentifier>{92978516-4e15-45e3-99a5-04b4325b3cbf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Notes\C6.Drawing\PipelineStateObject">
+      <UniqueIdentifier>{8c5e810b-a7c4-4dbb-bc9a-cf489d4dd73a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Shaders">
+      <UniqueIdentifier>{65cc1052-cf52-41df-a0f7-43644dab9d57}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+    <Text Include="D3D12Resource.txt">
+      <Filter>Notes\C4.Initialization</Filter>
+    </Text>
+    <Text Include="HeapProperties.txt">
+      <Filter>Notes\C4.Initialization</Filter>
+    </Text>
+    <Text Include="2.CreateVertexBuffer.txt">
+      <Filter>Notes\C6.Drawing\Vertices</Filter>
+    </Text>
+    <Text Include="1.CreateVertexStructures.txt">
+      <Filter>Notes\C6.Drawing\Vertices</Filter>
+    </Text>
+    <Text Include="5.DrawVertices.txt">
+      <Filter>Notes\C6.Drawing\Vertices</Filter>
+    </Text>
+    <Text Include="3.CreateVertexBufferView.txt">
+      <Filter>Notes\C6.Drawing\Vertices</Filter>
+    </Text>
+    <Text Include="VertexOverview.txt">
+      <Filter>Notes\C6.Drawing\Vertices</Filter>
+    </Text>
+    <Text Include="IndexOverview.txt">
+      <Filter>Notes\C6.Drawing\Indices</Filter>
+    </Text>
+    <Text Include="Drawing-High-Level-Overview.txt">
+      <Filter>Notes\C6.Drawing</Filter>
+    </Text>
+    <Text Include="InputLayoutDescriptionAndLinking.txt">
+      <Filter>Notes\C6.Drawing\Shaders</Filter>
+    </Text>
+    <Text Include="VertexShader.txt">
+      <Filter>Notes\C6.Drawing\Shaders</Filter>
+    </Text>
+    <Text Include="PixelShader.txt">
+      <Filter>Notes\C6.Drawing\Shaders</Filter>
+    </Text>
+    <Text Include="CreatingConstantBuffers.txt">
+      <Filter>Notes\C6.Drawing\ConstantBuffers</Filter>
+    </Text>
+    <Text Include="UpdatingConstantBuffers.txt">
+      <Filter>Notes\C6.Drawing\ConstantBuffers</Filter>
+    </Text>
+    <Text Include="ConstantBufferDescriptor.txt">
+      <Filter>Notes\C6.Drawing\ConstantBuffers</Filter>
+    </Text>
+    <Text Include="ConstantBufferView.txt">
+      <Filter>Notes\C6.Drawing\ConstantBuffers</Filter>
+    </Text>
+    <Text Include="RootSignatures.txt">
+      <Filter>Notes\C6.Drawing\ConstantBuffers</Filter>
+    </Text>
+    <Text Include="PipelineStateObject.txt">
+      <Filter>Notes\C6.Drawing\PipelineStateObject</Filter>
+    </Text>
+    <Text Include="GeometryHelper.txt">
+      <Filter>Notes\C6.Drawing</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GameTimer.h">
+      <Filter>Header Files\Timer</Filter>
+    </ClInclude>
+    <ClInclude Include="D3DApp.h">
+      <Filter>Header Files\Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dUtil.h">
+      <Filter>Header Files\LunaUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="DDSTextureLoader.h">
+      <Filter>Header Files\LunaUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="MathHelper.h">
+      <Filter>Header Files\LunaUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12.h">
+      <Filter>Header Files\LunaUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="InitDirect3D.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
+    <ClInclude Include="UploadBuffer.h">
+      <Filter>Header Files\LunaUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="BoxApp.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GameTimer.cpp">
+      <Filter>Source Files\Timer</Filter>
+    </ClCompile>
+    <ClCompile Include="D3DApp.cpp">
+      <Filter>Source Files\Framework</Filter>
+    </ClCompile>
+    <ClCompile Include="DDSTextureLoader.cpp">
+      <Filter>Source Files\LunaUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="MathHelper.cpp">
+      <Filter>Source Files\LunaUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="InitDirect3D.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="d3dUtil.cpp">
+      <Filter>Source Files\LunaUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="BoxApp.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="Box.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="4.BindViewToPipeline.txt">
+      <Filter>Notes\C6.Drawing\Vertices</Filter>
+    </None>
+  </ItemGroup>
+</Project>

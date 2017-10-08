@@ -1,0 +1,12 @@
+1. Create Vertex Structure / Description
+
+2. Create Vertex Buffer Resource 
+	i. Create Schedule to copy from system memory to a vertex buffer on the default heap
+		A. Copy vertices in system memory to an UPLOAD_HEAP
+		B. Copy UPLOAD_HEAP to DEFAULT_HEAP
+
+3. Describe the Vertex Buffer Resource using D3D12_VERTEX_BUFFER_VIEW (descriptor for buffers)
+
+4. Bind the view(s) to the pipeline
+
+5. Specify the topology and draw the vertices

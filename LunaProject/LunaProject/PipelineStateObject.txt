@@ -1,0 +1,76 @@
+-- Bind constant buffers, vertex and pixel shaders, etc to the pipeline via a pipeline state object
+
+typedef struct D3D12_PIPELINE_STATE_OBJECT { 
+	ID3D12RootSignature *pRootSignature;
+	D3D12_SHADER_BYTECODE VS; // vertex shader
+	D3D12_SHADER_BYTECODE PS; // geometry shader
+	D3D12_SHADER_BYTECODE DS; // Domain shader
+	D3D12_SHADER_BYTECODE HS; // Hull shader
+	D3D12_SHADER_BYTECODE GS; // Geometry shader
+	D3D12_STREAM_OUTPUT_DESC StreamOutput;
+	D3D12_BLEND_DESC BlendState;
+	UINT SampleMask;
+	D3D12_RASTERIZER_DESC RasterizerState;
+	D3D12_DEPTH_STENCIL_DESC; 
+	D3D12_INPUT_LAYOUT_DESC;
+	D3D12_PRIMITIVE_TOPOLOGY_TYPE;
+	UINT NumRenderTargets;
+	DXGI_FORMAT RTVFormats[8];
+	DXGI_FORMAT DSVFormat;
+	DXGI_SAMPLE_DESC SampleDesc;
+} D3D12_GRAPHICS_PIPELINE_STATE_DESC;
+
+1. pRootSignature - Pointer to root signature to be bound with the PSO.  Root shader must be compatible with shaders
+specified with the PSO
+
+2. Vertex shader to bind (pointer to the compiled bytecode data), and the size of the bytecode data in bytes
+
+typedef struct D3D12_SHADER_BYTECODE {
+	const BYTE *pShaderBytecode;
+	SIZE_T	BytecodeLength
+} D3D12_SHADER_BYTECODE;
+
+3. Pixel shader to bind
+4. Domain shader to bind
+5. Hull shader to bind
+6. The geometry shader to bind
+7. Stream output (advanced technique -- zero out for now)
+8. BlendState -- specific CD3DX12_BLEND_DESC(D3D12_DEFAULT)
+9. SampleMask -- Multisampling can take up to 32 samples
+10. RasterizerState -- Rasterization state which configures the rasterizer
+11. DepthStencilState - Specifies depth/stencil state which configures the ds test
+12. InputLayout -- input layout description
+13. PrimitiveTopologyType -- specifies the primitive topology type
+14. NumRenderTargets -- number of render targets we're using simultaneously
+15. RTVFormats -- RTV format; array to support writing tom ultiple render targets simultaneously
+16. DSVFormat - the format of the Depth/Stencil buffer
+17. SampleDesc -- Describes the multisample count and quality level.  Match the settings of the render target we are using
+
+------ Code:
+
+D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
+ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+psoDesc.InputLayout = { mInputLayout.data(), (UINT)mInputLayout.size() };
+psoDesc.pRootSignature = mRootSignature.Get();
+psoDesc.VS = {
+	reinterpret_cast<BYTE*>(mvsByteCode->GetBufferPointer()),
+	mvsByteCode->GetBufferSize());
+psoDesc.PS = {
+	reinterpret_cast<BYTE*>(mpsByteCode->GetBufferPointer()),
+	mpsByteCode->GetBufferSize()
+};
+
+psoDesc.RasterizerState = CD3D12_RASTERIZER_DESC(D3D12_DEFAULT);
+psoDesc.BlendState = CD3D12_BLEND_DESC(D3D12_DEFAULT);
+psoDesc.DepthStencilState = CD3D12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+psoDesc.SampleMaks = UINT_MAX;
+psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+psoDesc.NumRenderTargets = 1;
+psoDesc.RTVFormats[0] = mBackBufferFormat;
+psoDesc.SampleDesc.Count = m4xsaaState ? 4 : 1;
+psoDesc.SampleDesc.Quality = m4xsaaState ? (m4xMsaaQuality - 1) : 0;
+psoDesc.DSVFormat = mDepthStencilFormat;
+
+ComPtr<ID3D12PipelineState> mPSO;
+md3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPSO)));
+}

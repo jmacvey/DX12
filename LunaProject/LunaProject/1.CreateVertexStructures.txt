@@ -1,0 +1,97 @@
+Drawing custom vertices in D3D12:
+
+1.  Define the vertex structure
+	Examples:
+		struct Vertex1  {
+			XMFLOAT3 Pos;
+			XMFLOAT4 Color;
+		};
+
+		struct Vertex2 {
+			XMFLOAT3 Post;
+			XMFLOAT3 Normal;
+			XMFLOAT2 Tex0;
+			XMFLOAT2 Tex1;
+		};
+
+
+2.	Describe to D3D the vertex structure with D3D12_INPUT_LAYOUT_DESC structure
+
+	typedef struct D3D12_INPUT_LAYOUT_DESC {
+		const D3D12_INPUT_ELEMENT_DESC *pInputElementDescs; // 1 to 1 correspondence with vertex elements
+		UINT NumElements;	// number of elements in the array
+	} D3D12_INPUT_LAYOUT_DESC;
+
+	The D3D12_INPUT_ELEMENT_DESC describes the elements themselves:
+
+	typeodef struct D3D12_INPUT_ELEMENT_DESC {
+		LPCSTR SemanticName;
+		UINT SemanticIndex;
+		DXGI_FORMAT Format;
+		UINT InputSlot;
+		UINT AlignedByteOffset;
+		D3D12_INPUT_CLASSIFICATION InputSlotClass;
+		UINT InstanceDataStepRate;
+	} D3D12_INPUT_ELEMENT_DESC;
+
+	1. Semantic name -- a string associated with the element.  Used to map elements in the vertex structure to elements in the vertex
+	shader input signature.
+
+	2. Semantic index -- An index to attach to a semantic (means you can name the same semantic to more than one element)
+
+	3. Format: Member of the DXGI_FORMAT enumerated type specifying the data type of the vertex element
+
+	4. InputSlot: Specifies the input slow index [0-15]. 
+
+	5. AlignedByteOffset: Offset in bytes from the start of the C++ vertex structure. 
+
+	6. InputSlotClass: D3D12_INPUT_PER_VERTEX_DATA -- other option used for instancing
+
+	7. InstanceDataStepRate: 0 for now -- other option used for instancing
+
+
+	Example descriptions:
+
+	D3D12_INPUT_ELEMENT_DESC desc1[] = {
+		{
+			"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+			D3D12_INPUT_PER_VERTEX_DATA, 0
+		},
+		{
+			"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12,
+			D3D12_INPUT_PER_VERTEX_DATA, 0
+		}
+	};
+
+	D3D12_INPUT_ELEMENT_DESC desc2[] = {
+		{
+			"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+			D3D12_INPUT_PER_VERTEX_DATA, 0
+		},
+		{
+			"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
+			D3D12_INPUT_PER_VERTEX_DATA, 0
+		},
+		{
+			"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24,
+			D3D12_INPUT_PER_VERTEX_DATA, 0
+		},
+		{
+			"TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 0, 32,
+			D3D12_INPUT_PER_VERTEX_DATA, 0
+		}
+	};
+
+
+	DXGI_FORMATS:
+
+	DXGI_FORMAT_R32_FLOAT // 1D -> 32 bits = 4 bytes (32-bit scalar)
+	DXGI_FORMAT_R32G32_FLOAT // 2D -> 64 bits = 8 bytes (32-bit vector)
+	DXGI_FORMAT_R32G32B32_FLOAT // 3D -> 96 bits = 12 bytes (32-bit vector)
+	DXGI_FORMAT_R32G32B32A32_FLOAT // 4D -> 128 bits = 16 bytes (32-bit vector)
+
+	DXGI_FORMAT_R8_UINT	// 1D 8-bit scalar
+	DXGI_FORMAT_R16G16_SINT // 2D 16-bit signed integer vector
+	DXGI_FORMAT_R32G32B32_UINT // 3D 32-bit unsigned integer vector
+	DXGI_FORMAT_R8G8B8A8_UINT // 4D 8 bit unsigned integer vector
+	DXGI_FORMAT_R8G8B8A8_SINT // 4D 8 bit signed integer vector

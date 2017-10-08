@@ -1,0 +1,5 @@
+-- Helps to create a structure That groups a vertex and index buffer together to define a group of geometry.  In addition, the structure
+can keep a system memory backing of the vertex and index data so that it can be read by the CPU.  
+
+Providers methods that return views to buffers.
+

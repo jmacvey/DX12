@@ -1,0 +1,76 @@
+From 1.VertexStructures
+----
+
+For GPU to access array of vertices, need to be placed in a GPU resource (ID3D12Resource) called a "buffer".
+
+Vertex Buffer:  Buffer that stores vertices. duh :)
+
+Buffers are simpler resources than textures:
+	- Not multidimensional
+	- No mipmaps
+	- No filters
+	- No Multisampling support
+
+Can use buffers whenever have the need to provide the GPU with an array of data elements (like vertices)
+
+1. Create ID3D12Resource by filling out D3D12_RESOURCE_DESC structure describing the buffer resource.
+2. Call the ID3D12Device::CreateCommittedResource method.
+
+
+C++ Wrapper class to describe the buffer resource:
+
+CD3DX12_RESOURCE_BUFFER_DESC extends D3D12_RESOURCE_DESC
+
+CD3DX12_RESOURCE_BUFFER_DESC Buffer(UINT64 width,
+	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+	UINT64 alignment = 0);
+
+(ALL resources in Direct3D 12 are represented by the ID3D12Resource interface)
+
+---------
+
+For static geometry, we put vertex buffers in the default heap (D3D12_HEAP_TYPE_DEFAULT) for optimal performance.  Most geometry in a game
+will be like this (e.g. trees, buildings, terrain, characters).  After the vertex buffer has been initialized, only the GPU needs to read from the vertex
+buffer to draw the geometry.
+
+D3D12_HEAP_TYPE_DEFAULT restricts access by the CPU, so how to initialize the vertices?
+
+Need to create an intermediate uplaod buffer resource with heap type D3D12_HEAP_TYPE_UPLOAD.
+
+1. Create upload buffer
+2. Copy vertex data from system memory to upload buffer (on upload heap)
+3. Copy vertex data from upload buffer to vertex buffer (on default heap)
+
+** See d3dUtil.h/cpp CreateDefaultBuffer
+
+In there, we have a D3D12_SUBRESOURCE_DATA
+
+typedef struct D3D12_SUBRESOURCE_DATA {
+	const void	*pData;
+	LONG_PTR	RowPitch;
+	LONG_PTR	SlicePitch;
+} D3D12_SUBRESOURCE_DATA;
+
+1. pData.  Pointer to system memory array which contains the data to initialize the buffer with.  If the buffer can store n vertices,
+then the system array must contain at least n vertices so that the entire buffer can be initialized
+
+2. RowPitch.  For buffers, the size of the data we are copying in bytes
+
+3. SlicePItch.  For buffers, the size of the data we are copying in bytes
+
+Example code to copy resource from system memory to the default buffer:
+
+Vertex vertices[] = {
+	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Color::White) },
+	... 8 elements long
+	
+};
+
+const UINT64 vbByteSize = 8 * sizeof(Vertex); // 
+
+ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
+ComPtr<ID3D12Resource> VertexBufferUpload = nullptr;
+VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.get(), mCommandList.Get(), vertices, byteSize, VertexBufferUpload);
+
+
+

@@ -1,0 +1,22 @@
+				Cpp Layer
+					|
+					|
+					V
+1. Vertices and Indices and semantic mappings created in system memory
+2. They are copied into an UPLOAD_RESOURCE_HEAP by CPU
+3. Then copied from UPLOAD heap to DEFAULT heap (GPU only)
+4. Resource views (descriptors) are created to describe the location and type of buffer
+5. Resource views are bound to the rendering input assembler stage in the pipeline
+6. We issue the draw commands for the corresponding views
+					|
+					|
+			Semantic Mapping
+					|
+					V
+			|---------------|
+			| Vertex Shader |
+			|---------------|
+					|
+1. Vertex shader can map the position of the vertex to corresponding homogeneous clip space
+2. Vertex shader can store more information to pass to next pipeline stages
+

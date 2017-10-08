@@ -1,0 +1,19 @@
+-- From Updating Constant Buffers
+
+After Creating the constant buffer resource and copying system memory to it, we need to create a descriptor:
+
+
+// first create the descriptor heap (didn't need to do this for verte buffer views)
+Descriptor Heap is of type D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+
+D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
+cbvHeapDesc.NumDescriptors = 1;
+cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // <- indicates shaders will access this resource
+cbvHeapDesc.NodeMask = 0;
+
+ComPtr<ID3D12DescriptorHeap> mCbvHeap;
+md3dDevice->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&mbvHeap));
+
+// There is a descriptor for every object in the scene, and the descriptor will be of type CBV (constant buffer view)
+

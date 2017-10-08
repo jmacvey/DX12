@@ -1,0 +1,100 @@
+-- Continuing From ConstantBufferDescriptor
+
+Root Signature and Descriptor Tables
+
+// -------
+Different shader programs will expect different resources to be bound to the rendering pipeline before a draw call is executed.  Resources
+are bound to a particular register slots, where they can be accessed by shader programs.
+
+Example:  expects constant buffer to be bound to register b0
+
+cbuffer cbPerObject : register(b0) {
+	float4x4 gWorld;
+	float4x4 gTextTransform;
+}
+
+Root Signature defines what resources the applicaiton will bind to the rendering pipeline before a draw call can be executed and where those resources
+get mapped to shaer input registers.  Root signature must be compaitble with the shaders it's used with.  
+
+Root signature MUST provide all resources the shaders expect to be bound before a draw call can be executed.  Will be validated when the pipeline
+state object is created.
+
+Different draw calls may use a different set of shader programs, which will require a different root signature
+
+/// To the code:
+
+Implementation of root signatures through
+
+ID3D12RootSignature interface.  Defined by an array of root parameters.
+
+Root parameters describe resources the shaders expect for a draw call.
+
+Root parameter can be 
+(i) root constant
+(ii) root descriptor, or
+(iii) a descriptor table. 
+
+descriptor table specifies a contiguous range of descriptors in a descriptor heap
+
+Example root parameter as a descriptor table:
+
+// create array of root parameters
+CD3DX12_ROOT_PARAMETER slotRootParameter[1];
+
+
+// a descriptor table will specify a contiguous range of descriptors in a descriptor heap
+// this is that range
+CD3DX12_DESCRIPTOR_RANGE cbvTable;
+cbvTable.Init(
+	D3D12_DESCRIPTOR_RANGE_TYPE_CBV, // <- indicates a register of type B for buffer
+	1,	// Number descriptors (CBVs) in the table
+	0)  // base shader register arguments are bound to for the root param
+
+slotRootParameter[0].InitAsDescriptorTable(
+	1, // how many ranges?
+	&cbvTable // pointer to array of ranges (just one right now)
+); // this slot points to table holding ONE CBV bound to register b0
+
+// root sig is an array of root parameters
+CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(1, slotRootParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+// create the serialized root signature using the root signature description
+ComPtr<ID3DBlob> serializedRootSig = nullptr;
+Comptr<ID3DBlob> errorBlob = nullptr;
+HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc,
+	D3D_ROOT_SIGNATURE_VERSION_1,
+	serializedRootSig.GetAddressOf(),
+	errorBlob.GetAddress());
+
+// use the device to create the root signature 
+ThrowIfFailed(md3dDevice->CreateRootSignature(
+	0,
+	serializedRootSig->GetBufferPointer(),
+	serializedRootSig->GetBufferSize(),
+	IID_PPV_ARGS(&mRootSignature)
+));
+
+-----------------------------
+Root signature only DEFINES resources app will bind to rendering pipeline.  It does not bind them.  Once a root
+signature has been defined with the device and set using the command list, use
+
+ID3D12GraphicsCommandList::SetGraphicsDescriptorTable(
+	UINT RootParameterIndex,
+	D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor
+)
+
+to bind the descriptor to the pipeline.
+
+1. RootParameterIndex - index of root parameter we're setting
+2. BaseDescriptor - Handle to descriptor in the heap that specifies the first descriptor in the table being set
+
+// so to do outs, we'd use:
+
+mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvHeap.Get() };
+mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+cbv.Offset(cbvIndex, mCbvSrvUavDescriptorSize);
+
+mCommandList->SetGraphicsRootDescriptorTable(0, cbv);
