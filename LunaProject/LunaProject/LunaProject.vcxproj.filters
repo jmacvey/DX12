@@ -67,6 +67,12 @@
     <Filter Include="Header Files\Exercises">
       <UniqueIdentifier>{e4ba8699-b617-43dd-a0e8-cd93e4f8b542}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Geometry">
+      <UniqueIdentifier>{27531b0e-7bf7-415f-b3d9-248c378e9430}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Geometry">
+      <UniqueIdentifier>{e7cc6b9e-3d00-49ac-b8fe-66c3b2c4ab5d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -165,6 +171,12 @@
     <ClInclude Include="6131.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Pyramid.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="Vertex.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -193,6 +205,9 @@
     </ClCompile>
     <ClCompile Include="Box.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Pyramid.cpp">
+      <Filter>Source Files\Geometry</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

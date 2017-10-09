@@ -3,24 +3,15 @@
 
 #include "UploadBuffer.h"
 #include "D3DApp.h"
+#include "Vertex.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 using std::unique_ptr;
-
-struct Vertex {
-	XMFLOAT3 Pos;
-	XMFLOAT4 Color;
-};
-
-struct VPosData {
-	XMFLOAT3 Pos;
-};
-
-struct VColorData {
-	XMFLOAT4 Color;
-};
+using VertexTypes::GenericVertex;
+using VertexTypes::VColorData;
+using VertexTypes::VPosData;
 
 struct ObjectConstants {
 	XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
@@ -55,6 +46,7 @@ private:
 	void BuildBoxPositions();
 	void BuildBoxColors();
 	void BuildBoxGeometry();
+	void BuildPyramidGeometry();
 	void BuildPSO();
 
 private:
@@ -68,6 +60,7 @@ private:
 	unique_ptr<MeshGeometry> mBoxGeo = nullptr;
 	unique_ptr<MeshGeometry> mBoxColorData = nullptr;
 	unique_ptr<MeshGeometry> mBoxPosData = nullptr;
+	unique_ptr<MeshGeometry> mPyramidData = nullptr;
 
 	// index data
 	std::array<std::uint16_t, 36> mBoxIndices;

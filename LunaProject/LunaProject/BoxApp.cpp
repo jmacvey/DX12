@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "BoxApp.h"
+#include "Pyramid.h"
 #include <array>
 
 
@@ -18,10 +19,10 @@ bool BoxApp::Initialize() {
 	BuildConstantBuffers();
 	BuildRootSignature();
 	BuildShadersAndInputLayout();
-	BuildBoxIndices();
-	BuildBoxPositions();
-	BuildBoxColors();
-	//BuildBoxGeometry();
+	// BuildBoxIndices();
+	// BuildBoxPositions();
+	// BuildBoxColors();
+	BuildPyramidGeometry();
 	BuildPSO();
 
 	ThrowIfFailed(mCommandList->Close());
@@ -73,7 +74,7 @@ void BoxApp::OnMouseMove(WPARAM btnState, int x, int y) {
 void BoxApp::OnResize() {
 	D3DApp::OnResize();
 
-	// the window resized, so update the aspet ratio and recompute the projection matrix
+	// the window resized, so update the aspect ratio and recompute the projection matrix
 	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
 	XMStoreFloat4x4(&mProj, P);
 }
@@ -86,7 +87,7 @@ void BoxApp::Update(const GameTimer& gt) {
 
 	// build view matrix
 	XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
-	XMVECTOR target = XMVectorZero(); // <- always point to origin
+	XMVECTOR target = XMVectorSet(0.0f, (1.0f / 6.0f)*XM_PI, 0.0f, 0.0f);
 	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
 	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
@@ -133,14 +134,14 @@ void BoxApp::Draw(const GameTimer& gt) {
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	D3D12_VERTEX_BUFFER_VIEW vBufferViews[] = { mBoxPosData->VertexBufferView(), mBoxColorData->VertexBufferView() };
-	mCommandList->IASetVertexBuffers(0, 2, vBufferViews);
-	mCommandList->IASetIndexBuffer(&mBoxPosData->IndexBufferView());
+	// D3D12_VERTEX_BUFFER_VIEW vBufferViews[] = { mBoxPosData->VertexBufferView(), mBoxColorData->VertexBufferView() };
+	mCommandList->IASetVertexBuffers(0, 1, &mBoxGeo->VertexBufferView());
+	mCommandList->IASetIndexBuffer(&mBoxGeo->IndexBufferView());
 	mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvHeap->GetGPUDescriptorHandleForHeapStart());
 	mCommandList->DrawIndexedInstanced(
-		mBoxPosData->DrawArgs["box"].IndexCount,
+		mBoxGeo->DrawArgs[Pyramid::GeometryName].IndexCount,
 		1, 0, 0, 0
 	);
 
@@ -228,21 +229,21 @@ void BoxApp::BuildShadersAndInputLayout() {
 
 	// vertex structure has a pos and color with shader semantics POSITION and COLOR, respectively
 	// both are at semantic index 0.  R32G32B32 = 3 * 32 = 96 bits, or 12 byte total (so offset of 12 bytes for color) 
-	mInputLayout = {
-		{
-			"POSITION", // semantic name 
-			0, // semantic index 
-			DXGI_FORMAT_R32G32B32_FLOAT, // format
-			0, // input slot (all vertex will come through here)
-			0, // Aligned byte offset into vertex structure
-			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, // Input slow class
-			0 // instance data step rate (used for instancing)
-		},
-		{
-			"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0,
-				D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-		}
-	};
+	//mInputLayout = {
+	//	{
+	//		"POSITION", // semantic name 
+	//		0, // semantic index 
+	//		DXGI_FORMAT_R32G32B32_FLOAT, // format
+	//		0, // input slot (all vertex will come through here)
+	//		0, // Aligned byte offset into vertex structure
+	//		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, // Input slow class
+	//		0 // instance data step rate (used for instancing)
+	//	},
+	//	{
+	//		"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0,
+	//			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+	//	}
+	//};
 }
 
 void BoxApp::BuildBoxIndices() {
@@ -276,18 +277,18 @@ void BoxApp::BuildBoxIndices() {
 }
 
 void BoxApp::BuildBoxGeometry() {
-	std::array<Vertex, 8> vertices = {
-		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White)}),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black)}),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red)}),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green)}),
-		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue)}),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow)}),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan)}),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta)})
+	std::array<GenericVertex, 8> vertices = {
+		GenericVertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White)}),
+		GenericVertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black)}),
+		GenericVertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red)}),
+		GenericVertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green)}),
+		GenericVertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue)}),
+		GenericVertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow)}),
+		GenericVertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan)}),
+		GenericVertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta)})
 	};
 
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(GenericVertex);
 	const UINT ibByteSize = (UINT)mBoxIndices.size() * sizeof(std::uint16_t);
 
 	mBoxGeo = std::make_unique<MeshGeometry>();
@@ -308,7 +309,7 @@ void BoxApp::BuildBoxGeometry() {
 	mBoxGeo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), mBoxIndices.data(), ibByteSize,
 		mBoxGeo->IndexBufferUploader);
 
-	mBoxGeo->VertexByteStride = sizeof(Vertex);
+	mBoxGeo->VertexByteStride = sizeof(GenericVertex);
 	mBoxGeo->VertexBufferByteSize = vbByteSize;
 	mBoxGeo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	mBoxGeo->IndexBufferByteSize = ibByteSize;
@@ -407,6 +408,12 @@ void BoxApp::BuildBoxColors() {
 	submesh.StartIndexLocation = 0;
 	
 	mBoxColorData->DrawArgs["BoxColors"] = submesh;
+}
+
+void BoxApp::BuildPyramidGeometry() {
+	Pyramid pyramid(md3dDevice, mCommandList);
+	mInputLayout = pyramid.GetInputLayoutDescription();
+	mBoxGeo = pyramid.GetGeometry();
 }
 
 void BoxApp::BuildPSO() {
