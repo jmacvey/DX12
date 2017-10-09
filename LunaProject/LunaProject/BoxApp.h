@@ -16,6 +16,7 @@ struct Vertex {
 
 struct ObjectConstants {
 	XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
+	float Time = 0;
 };
 
 class BoxApp : public D3DApp {

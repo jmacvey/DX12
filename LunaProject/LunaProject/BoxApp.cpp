@@ -80,7 +80,6 @@ void BoxApp::Update(const GameTimer& gt) {
 	float x = mRadius*sinf(mPhi)*cosf(mTheta);
 	float z = mRadius*sinf(mPhi)*sinf(mTheta);
 	float y = mRadius*cosf(mPhi);
-
 	// build view matrix
 	XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
 	XMVECTOR target = XMVectorZero(); // <- always point to origin
@@ -96,6 +95,7 @@ void BoxApp::Update(const GameTimer& gt) {
 	// update constant buffer with latest matrix
 	ObjectConstants objConstants;
 	XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+	objConstants.Time = gt.TotalTime();
 	mObjectCB->CopyData(0, objConstants);
 }
 
@@ -327,7 +327,10 @@ void BoxApp::BuildPSO() {
 		reinterpret_cast<BYTE*>(mpsByteCode->GetBufferPointer()),
 		mpsByteCode->GetBufferSize()
 	};
-	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	auto rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	rasterizer.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	rasterizer.CullMode = D3D12_CULL_MODE_BACK;
+	psoDesc.RasterizerState = rasterizer;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.SampleMask = UINT_MAX;
