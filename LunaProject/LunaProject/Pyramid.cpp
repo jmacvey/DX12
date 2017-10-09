@@ -13,21 +13,21 @@ Pyramid::Pyramid(ComPtr<ID3D12Device> pDevice, ComPtr<ID3D12GraphicsCommandList>
 std::array<std::uint16_t, Pyramid::PyramidIndexSize> Pyramid::GetIndexList() const {
 	return {
 		// bottom left
-		1, 2, 0,
-		0, 2, 3,
+		0, 2, 1,
+		0, 3, 2,
 
 		// sides
-		4, 2, 1,
-		4, 1, 0,
-		4, 0, 3,
-		4, 3, 2
+		0, 1, 4,
+		1, 2, 4,
+		2, 3, 4,
+		3, 0, 4
 	};
 }
 
 std::array<VertexTypes::GenericVertex, 5> Pyramid::GetVertexList() const {
 	using VertexTypes::GenericVertex;
 	return {
-		GenericVertex({ XMFLOAT3(+1.0, +0.0, 1.0), XMFLOAT4(Colors::Green) }),
+		GenericVertex({ XMFLOAT3(+1.0, +0.0, +1.0), XMFLOAT4(Colors::Green) }),
 		GenericVertex({ XMFLOAT3(+1.0, +0.0, -1.0), XMFLOAT4(Colors::Green) }),
 		GenericVertex({ XMFLOAT3(-1.0, +0.0, -1.0), XMFLOAT4(Colors::Green) }),
 		GenericVertex({ XMFLOAT3(-1.0, +0.0, +1.0), XMFLOAT4(Colors::Green) }),
