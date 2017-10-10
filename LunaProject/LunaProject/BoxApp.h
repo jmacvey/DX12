@@ -41,7 +41,7 @@ private:
 	void BuildDescriptorHeaps();
 	void BuildConstantBuffers();
 	void BuildRootSignature();
-	void BuildShadersAndInputLayout();
+	void BuildShaders();
 	void BuildBoxIndices();
 	void BuildBoxPositions();
 	void BuildBoxColors();
