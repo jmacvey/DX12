@@ -21,10 +21,11 @@ bool BoxApp::Initialize() {
 	BuildRootSignature();
 	BuildShaders();
 	// BuildBoxIndices();
-	BuildBoxGeometry();
+	// BuildBoxGeometry();
 	// BuildBoxPositions();
 	// BuildBoxColors();
 	// BuildPyramidGeometry();
+	BuildGeometry();
 	BuildPSO();
 	// SetScissorRects();
 	// mScreenViewport.Width = (mClientWidth / 2);
@@ -95,17 +96,21 @@ void BoxApp::Update(const GameTimer& gt) {
 
 	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
 	XMStoreFloat4x4(&mView, view);
-
-	XMMATRIX world = XMLoadFloat4x4(&mWorld);
 	XMMATRIX proj = XMLoadFloat4x4(&mProj);
-	XMMATRIX worldViewProj = world*view*proj;
+	XMMATRIX viewProj = view*proj;
+	auto time = gt.TotalTime();
+	ObjectConstants objConstants[2] = { {}, {} };
+	auto updateCoordinates = [&](const XMFLOAT4X4& worldTransform, UINT elementIndex) {
+		XMMATRIX world = XMLoadFloat4x4(&worldTransform);
+		XMMATRIX worldViewProj = world*viewProj;
+		XMStoreFloat4x4(&(objConstants[elementIndex].WorldViewProj), XMMatrixTranspose(worldViewProj));
+		objConstants[elementIndex].Time = time;
+		objConstants[elementIndex].PulseColor = XMFLOAT4(Colors::AliceBlue);
+		mObjectCB->CopyData(elementIndex, objConstants[elementIndex]);
+	};
 
-	// update constant buffer with latest matrix
-	ObjectConstants objConstants;
-	XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
-	objConstants.Time = gt.TotalTime();
-	//objConstants.PulseColor = XMFLOAT4(Colors::Azure);
-	mObjectCB->CopyData(0, objConstants);
+	updateCoordinates(mWorldBox, 0);
+	updateCoordinates(mWorldPyramid, 1);
 }
 
 void BoxApp::Draw(const GameTimer& gt) {
@@ -138,16 +143,30 @@ void BoxApp::Draw(const GameTimer& gt) {
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-
-	// D3D12_VERTEX_BUFFER_VIEW vBufferViews[] = { mBoxPosData->VertexBufferView(), mBoxColorData->VertexBufferView() };
-	mCommandList->IASetVertexBuffers(0, 1, &mBoxGeo->VertexBufferView());
-	mCommandList->IASetIndexBuffer(&mBoxGeo->IndexBufferView());
+	mCommandList->IASetVertexBuffers(0, 1, &mGeo->VertexBufferView());
+	mCommandList->IASetIndexBuffer(&mGeo->IndexBufferView());
 	mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+	auto boxSubmesh = mGeo->DrawArgs[Box::GeometryName];
+	auto pyramidSubmesh = mGeo->DrawArgs[Pyramid::GeometryName];
+	
 	mCommandList->DrawIndexedInstanced(
-		mBoxGeo->DrawArgs[Box::GeometryName].IndexCount,
-		1, 0, 0, 0
+		boxSubmesh.IndexCount,
+		1, boxSubmesh.StartIndexLocation,
+		boxSubmesh.BaseVertexLocation, 0
+	);
+
+	// Offset to the CBV in the descriptor heap for this object
+	auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+	cbvHandle.Offset(1, mCbvSrvDescriptorSize);
+
+	mCommandList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+
+	mCommandList->DrawIndexedInstanced(
+		pyramidSubmesh.IndexCount,
+		1, pyramidSubmesh.StartIndexLocation,
+		pyramidSubmesh.BaseVertexLocation, 0
 	);
 
 	// indicate a state transition 
@@ -170,7 +189,7 @@ void BoxApp::Draw(const GameTimer& gt) {
 void BoxApp::BuildDescriptorHeaps() {
 
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
-	cbvHeapDesc.NumDescriptors = 1;
+	cbvHeapDesc.NumDescriptors = 2;
 	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	cbvHeapDesc.NodeMask = 0;
@@ -181,20 +200,24 @@ void BoxApp::BuildDescriptorHeaps() {
 void BoxApp::BuildConstantBuffers() {
 	// wraps the upload buffer in a unique pointer and forwards constants to UploadBuffer constructor
 	// d3dDevice pointer, # elements in constant buffer, isConstantBuffer = true
-	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(md3dDevice.Get(), 1, true);
+	UINT bufferSize = 2;
+	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(md3dDevice.Get(), bufferSize, true);
 
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
-	D3D12_GPU_VIRTUAL_ADDRESS cbAddress = mObjectCB->Resource()->GetGPUVirtualAddress();
+	for (UINT i = 0; i < bufferSize; ++i) {
+		D3D12_GPU_VIRTUAL_ADDRESS cbAddress = mObjectCB->Resource()->GetGPUVirtualAddress();
+		cbAddress += i*objCBByteSize;
 
-	int boxCBufIndex = 0; // <- no offset
-	cbAddress += boxCBufIndex*objCBByteSize;
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+		cbvDesc.BufferLocation = cbAddress;
+		cbvDesc.SizeInBytes = objCBByteSize;
+		auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart());
+		handle.Offset(i, mCbvSrvDescriptorSize);
+		md3dDevice->CreateConstantBufferView(&cbvDesc, handle);
+	}
+	
 
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-	cbvDesc.BufferLocation = cbAddress;
-	cbvDesc.SizeInBytes = objCBByteSize;
-
-	md3dDevice->CreateConstantBufferView(&cbvDesc, mCbvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 void BoxApp::BuildRootSignature() {
@@ -203,7 +226,7 @@ void BoxApp::BuildRootSignature() {
 
 	// descriptor table describes contiguous range of descriptors in a descriptor heap
 	CD3DX12_DESCRIPTOR_RANGE cbvTable;
-	cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0);
 	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable); // <- note all shaders can see this
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(1, slotRootParameter, 0, nullptr,
@@ -361,7 +384,64 @@ void BoxApp::BuildBoxColors() {
 void BoxApp::BuildPyramidGeometry() {
 	Pyramid pyramid(md3dDevice, mCommandList);
 	mInputLayout = pyramid.GetInputLayoutDescription();
-	mBoxGeo = pyramid.GetGeometry();
+	mPyramidData = pyramid.GetGeometry();
+}
+
+void BoxApp::BuildGeometry() {
+	using VertexTypes::EfficientColorVertex;
+	Pyramid pyramid(md3dDevice, mCommandList);
+	Box box(md3dDevice, mCommandList);
+	mInputLayout = box.GetInputElementLayout();
+	auto boxIndices = box.GetIndexList();
+	auto boxVertices = box.GetVertexList();
+
+	auto pyramidIndices = pyramid.GetIndexList();
+	auto pyramidVertices = pyramid.GetVertexList();
+
+	std::vector<VertexTypes::EfficientColorVertex> vList;
+	std::vector<std::uint16_t> iList;
+
+	auto copyVertex = [&](const EfficientColorVertex& v) { vList.emplace_back(v); };
+	std::for_each(boxVertices.begin(), boxVertices.end(), copyVertex);
+	std::for_each(pyramidVertices.begin(), pyramidVertices.end(), copyVertex);
+
+	auto copyIndex = [&](uint16_t index) { iList.emplace_back(index); };
+	std::for_each(boxIndices.begin(), boxIndices.end(), copyIndex);
+	std::for_each(pyramidIndices.begin(), pyramidIndices.end(), copyIndex);
+
+	UINT ibByteSize = (UINT)iList.size() * sizeof(std::uint16_t);
+	UINT vbByteSize = (UINT)vList.size() * sizeof(EfficientColorVertex);
+
+	SubmeshGeometry boxSubmesh;
+	boxSubmesh.BaseVertexLocation = 0;
+	boxSubmesh.StartIndexLocation = 0;
+	boxSubmesh.IndexCount = (UINT)boxIndices.size();
+
+	SubmeshGeometry pyramidSubmesh;
+	pyramidSubmesh.BaseVertexLocation = (UINT)boxVertices.size();
+	pyramidSubmesh.StartIndexLocation = boxSubmesh.IndexCount;
+	pyramidSubmesh.IndexCount = (UINT)pyramidIndices.size();
+
+	auto geometry = std::make_unique<MeshGeometry>();
+	geometry->Name = "Box N' Pyramid";
+	geometry->VertexBufferByteSize = vbByteSize;
+	geometry->IndexBufferByteSize = ibByteSize;
+	geometry->VertexByteStride = sizeof(VertexTypes::EfficientColorVertex);
+
+	geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geometry->DrawArgs[Box::GeometryName] = boxSubmesh;
+	geometry->DrawArgs[Pyramid::GeometryName] = pyramidSubmesh;
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geometry->VertexBufferCPU));
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geometry->IndexBufferCPU));
+
+	CopyMemory(geometry->VertexBufferCPU->GetBufferPointer(), vList.data(), vbByteSize);
+	CopyMemory(geometry->IndexBufferCPU->GetBufferPointer(), iList.data(), ibByteSize);
+
+	d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), vList.data(), vbByteSize, geometry->VertexBufferGPU);
+	d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), iList.data(), ibByteSize, geometry->IndexBufferGPU);
+
+	geometry.swap(mGeo);
 }
 
 void BoxApp::BuildPSO() {
@@ -380,7 +460,7 @@ void BoxApp::BuildPSO() {
 	};
 
 	auto rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	// rasterizer.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	rasterizer.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	// rasterizer.CullMode = D3D12_CULL_MODE_FRONT;
 
 	psoDesc.RasterizerState = rasterizer;

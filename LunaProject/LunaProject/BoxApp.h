@@ -51,6 +51,7 @@ private:
 	void BuildPyramidGeometry();
 	void BuildPSO();
 	void SetScissorRects();
+	void BuildGeometry();
 
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
@@ -64,6 +65,7 @@ private:
 	unique_ptr<MeshGeometry> mBoxColorData = nullptr;
 	unique_ptr<MeshGeometry> mBoxPosData = nullptr;
 	unique_ptr<MeshGeometry> mPyramidData = nullptr;
+	unique_ptr<MeshGeometry> mGeo = nullptr;
 
 	// index data
 	std::array<std::uint16_t, 36> mBoxIndices;
@@ -77,7 +79,13 @@ private:
 	
 	ComPtr<ID3D12PipelineState> mPSO = nullptr;
 
-	XMFLOAT4X4 mWorld = MathHelper::Identity4x4();
+	XMFLOAT4X4 mWorldPyramid = MathHelper::Identity4x4();
+	XMFLOAT4X4 mWorldBox = XMFLOAT4X4(
+		1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		1, 0, 2, 1
+	);
 	XMFLOAT4X4 mView = MathHelper::Identity4x4();
 	XMFLOAT4X4 mProj = MathHelper::Identity4x4();
 

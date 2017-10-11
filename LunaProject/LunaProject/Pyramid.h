@@ -16,7 +16,7 @@ public:
 
 	std::array<std::uint16_t, Pyramid::PyramidIndexSize> GetIndexList() const;
 
-	std::array<VertexTypes::GenericVertex, 5> GetVertexList() const;
+	std::array<VertexTypes::EfficientColorVertex, 5> GetVertexList() const;
 
 	std::unique_ptr<MeshGeometry> GetGeometry() const;
 

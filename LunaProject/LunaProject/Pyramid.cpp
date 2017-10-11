@@ -6,7 +6,7 @@ const char* const Pyramid::GeometryName = "PYRAMID";
 Pyramid::Pyramid(ComPtr<ID3D12Device> pDevice, ComPtr<ID3D12GraphicsCommandList> pCmdList, UINT inputSlot) : mpDevice(pDevice), mpCmdList(pCmdList) {
 	mInputLayout = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, inputSlot, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, inputSlot, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, inputSlot, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 }
 
@@ -24,14 +24,14 @@ std::array<std::uint16_t, Pyramid::PyramidIndexSize> Pyramid::GetIndexList() con
 	};
 }
 
-std::array<VertexTypes::GenericVertex, 5> Pyramid::GetVertexList() const {
-	using VertexTypes::GenericVertex;
+std::array<VertexTypes::EfficientColorVertex, 5> Pyramid::GetVertexList() const {
+	using VertexTypes::EfficientColorVertex;
 	return {
-		GenericVertex({ XMFLOAT3(+1.0, +0.0, +1.0), XMFLOAT4(Colors::Green) }),
-		GenericVertex({ XMFLOAT3(+1.0, +0.0, -1.0), XMFLOAT4(Colors::Green) }),
-		GenericVertex({ XMFLOAT3(-1.0, +0.0, -1.0), XMFLOAT4(Colors::Green) }),
-		GenericVertex({ XMFLOAT3(-1.0, +0.0, +1.0), XMFLOAT4(Colors::Green) }),
-		GenericVertex({ XMFLOAT3(+0.0, (1.0/3.0)*XM_PI, +0.0), XMFLOAT4(Colors::Red) })
+		EfficientColorVertex({ XMFLOAT3(+1.0, +0.0, +1.0), XMCOLOR(Colors::Green) }),
+		EfficientColorVertex({ XMFLOAT3(+1.0, +0.0, -1.0), XMCOLOR(Colors::Green) }),
+		EfficientColorVertex({ XMFLOAT3(-1.0, +0.0, -1.0), XMCOLOR(Colors::Green) }),
+		EfficientColorVertex({ XMFLOAT3(-1.0, +0.0, +1.0), XMCOLOR(Colors::Green) }),
+		EfficientColorVertex({ XMFLOAT3(+0.0, (1.0/3.0)*XM_PI, +0.0), XMCOLOR(Colors::Red) })
 	};
 }
 
@@ -39,7 +39,7 @@ std::unique_ptr<MeshGeometry> Pyramid::GetGeometry() const {
 	auto vertices = GetVertexList();
 	auto indices = GetIndexList();
 
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(VertexTypes::GenericVertex);
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(VertexTypes::EfficientColorVertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	auto geometry = std::make_unique<MeshGeometry>();
@@ -55,7 +55,7 @@ std::unique_ptr<MeshGeometry> Pyramid::GetGeometry() const {
 	geometry->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(mpDevice.Get(), mpCmdList.Get(), indices.data(), ibByteSize, geometry->IndexBufferUploader);
 
 	geometry->VertexBufferByteSize = vbByteSize;
-	geometry->VertexByteStride = sizeof(VertexTypes::GenericVertex);
+	geometry->VertexByteStride = sizeof(VertexTypes::EfficientColorVertex);
 	geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
 	geometry->IndexBufferByteSize = ibByteSize;
 
