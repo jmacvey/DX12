@@ -26,7 +26,8 @@ bool BoxApp::Initialize() {
 	// BuildBoxColors();
 	// BuildPyramidGeometry();
 	BuildPSO();
-
+	// SetScissorRects();
+	// mScreenViewport.Width = (mClientWidth / 2);
 	ThrowIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
@@ -102,6 +103,8 @@ void BoxApp::Update(const GameTimer& gt) {
 	// update constant buffer with latest matrix
 	ObjectConstants objConstants;
 	XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+	objConstants.Time = gt.TotalTime();
+	//objConstants.PulseColor = XMFLOAT4(Colors::Azure);
 	mObjectCB->CopyData(0, objConstants);
 }
 
@@ -377,8 +380,9 @@ void BoxApp::BuildPSO() {
 	};
 
 	auto rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	rasterizer.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	// rasterizer.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	// rasterizer.CullMode = D3D12_CULL_MODE_FRONT;
+
 	psoDesc.RasterizerState = rasterizer;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -390,4 +394,9 @@ void BoxApp::BuildPSO() {
 	psoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	psoDesc.DSVFormat = mDepthStencilFormat;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPSO)));
+}
+
+void BoxApp::SetScissorRects() {
+	mScissorRect = { mClientWidth / 4, mClientHeight / 4, mClientWidth*3/4, mClientHeight*3/4 };
+	mCommandList->RSSetScissorRects(1, &mScissorRect);
 }

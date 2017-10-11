@@ -15,6 +15,8 @@ using VertexTypes::VPosData;
 
 struct ObjectConstants {
 	XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
+	XMFLOAT4 PulseColor = XMFLOAT4(Colors::DarkCyan);
+	float Time = 0;
 };
 
 class BoxApp : public D3DApp {
@@ -48,6 +50,7 @@ private:
 	void BuildBoxGeometry();
 	void BuildPyramidGeometry();
 	void BuildPSO();
+	void SetScissorRects();
 
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;

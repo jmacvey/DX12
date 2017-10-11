@@ -20,6 +20,11 @@ namespace VertexTypes {
 		XMFLOAT4 Color;
 	};
 
+	struct EfficientColorVertex {
+		XMFLOAT3 Pos;
+		XMCOLOR Color;
+	};
+
 };
 
 #endif

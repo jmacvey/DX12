@@ -7,21 +7,21 @@ const char* Box::GeometryName = "Box";
 
 Box::Box(ComPtr<ID3D12Device> pDevice, ComPtr<ID3D12GraphicsCommandList> pCommandList, UINT slotNumber) : mpDevice(pDevice),
 	mpCmdList(pCommandList) { 
-	using VertexTypes::GenericVertex;
+	using VertexTypes::EfficientColorVertex;
 	mLayout = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, slotNumber, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, slotNumber, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, slotNumber, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
 	mVertexList = {
-		GenericVertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
-		GenericVertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
-		GenericVertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
-		GenericVertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
-		GenericVertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
-		GenericVertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
-		GenericVertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
-		GenericVertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) })
+		EfficientColorVertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMCOLOR(Colors::White) }),
+		EfficientColorVertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMCOLOR(Colors::Black) }),
+		EfficientColorVertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMCOLOR(Colors::Red) }),
+		EfficientColorVertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMCOLOR(Colors::Green) }),
+		EfficientColorVertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMCOLOR(Colors::Blue) }),
+		EfficientColorVertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMCOLOR(Colors::Yellow) }),
+		EfficientColorVertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMCOLOR(Colors::Cyan) }),
+		EfficientColorVertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMCOLOR(Colors::Magenta) })
 	};
 
 	mIndexList = {
@@ -51,7 +51,7 @@ Box::Box(ComPtr<ID3D12Device> pDevice, ComPtr<ID3D12GraphicsCommandList> pComman
 	};
 }
 
-std::array<VertexTypes::GenericVertex, 8> Box::GetVertexList() const {
+std::array<VertexTypes::EfficientColorVertex, 8> Box::GetVertexList() const {
 	return mVertexList;
 }
 
@@ -66,7 +66,7 @@ std::unique_ptr<MeshGeometry> Box::GetGeometry() const {
 	geometry->Name = Box::GeometryName;
 
 
-	const UINT vbByteSize = (UINT)mVertexList.size() * sizeof(VertexTypes::GenericVertex);
+	const UINT vbByteSize = (UINT)mVertexList.size() * sizeof(VertexTypes::EfficientColorVertex);
 	const UINT ibByteSize = (UINT)mIndexList.size() * sizeof(std::uint16_t);
 	
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geometry->VertexBufferCPU));
@@ -80,7 +80,7 @@ std::unique_ptr<MeshGeometry> Box::GetGeometry() const {
 
 	geometry->VertexBufferByteSize = vbByteSize;
 	geometry->IndexBufferByteSize = ibByteSize;
-	geometry->VertexByteStride = sizeof(VertexTypes::GenericVertex);
+	geometry->VertexByteStride = sizeof(VertexTypes::EfficientColorVertex);
 	geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
 
 	SubmeshGeometry submesh;

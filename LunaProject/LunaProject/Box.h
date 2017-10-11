@@ -10,7 +10,7 @@ public:
 
 	Box(ComPtr<ID3D12Device> pDevice, ComPtr<ID3D12GraphicsCommandList> pCmdList, UINT slotNumber = 0);
 
-	std::array<VertexTypes::GenericVertex, 8> GetVertexList() const;
+	std::array<VertexTypes::EfficientColorVertex, 8> GetVertexList() const;
 
 	std::array<std::uint16_t, 36> GetIndexList() const;
 
@@ -22,7 +22,7 @@ private:
 	ComPtr<ID3D12Device> mpDevice;
 	ComPtr<ID3D12GraphicsCommandList> mpCmdList;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mLayout;
-	std::array<VertexTypes::GenericVertex, 8> mVertexList;
+	std::array<VertexTypes::EfficientColorVertex, 8> mVertexList;
 	std::array<std::uint16_t, 36> mIndexList;
 };
 
