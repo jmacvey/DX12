@@ -25,8 +25,13 @@ bool BoxApp::Initialize() {
 	// BuildBoxPositions();
 	// BuildBoxColors();
 	// BuildPyramidGeometry();
-	BuildGeometry();
+	// BuildGeometry();
+	// BuildCylinder();
+	// BuildSphere();
+	// BuildGrid();
+	BuildBox();
 	BuildPSO();
+
 	// SetScissorRects();
 	// mScreenViewport.Width = (mClientWidth / 2);
 	ThrowIfFailed(mCommandList->Close());
@@ -64,12 +69,12 @@ void BoxApp::OnMouseMove(WPARAM btnState, int x, int y) {
 		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
 	}
 	else if ((btnState & MK_RBUTTON) != 0) {
-		float dx = 0.005f*static_cast<float>(x - mLastMousePos.x);
-		float dy = 0.005f*static_cast<float>(y - mLastMousePos.y);
+		float dx = 0.05f*static_cast<float>(x - mLastMousePos.x);
+		float dy = 0.05f*static_cast<float>(y - mLastMousePos.y);
 
 		// update camera radius based on input
 		mRadius += dx - dy;
-		mRadius = MathHelper::Clamp(mRadius, 3.0f, 5.0f);
+		mRadius = MathHelper::Clamp(mRadius, 3.0f, 150.0f);
 	}
 	mLastMousePos.x = x;
 	mLastMousePos.y = y;
@@ -109,8 +114,9 @@ void BoxApp::Update(const GameTimer& gt) {
 		mObjectCB->CopyData(elementIndex, objConstants[elementIndex]);
 	};
 
-	updateCoordinates(mWorldBox, 0);
-	updateCoordinates(mWorldPyramid, 1);
+	updateCoordinates(mWorldPyramid, 0);
+	// updateCoordinates(mWorldBox, 0);
+	// updateCoordinates(mWorldPyramid, 1);
 }
 
 void BoxApp::Draw(const GameTimer& gt) {
@@ -143,31 +149,47 @@ void BoxApp::Draw(const GameTimer& gt) {
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-	mCommandList->IASetVertexBuffers(0, 1, &mGeo->VertexBufferView());
-	mCommandList->IASetIndexBuffer(&mGeo->IndexBufferView());
+	//mCommandList->IASetVertexBuffers(0, 1, &mGeo->VertexBufferView());
+	//mCommandList->IASetIndexBuffer(&mGeo->IndexBufferView());
+	//mCommandList->IASetVertexBuffers(0, 1, &mCylinder->VertexBufferView());
+	//mCommandList->IASetIndexBuffer(&mCylinder->IndexBufferView());
+	//mCommandList->IASetVertexBuffers(0, 1, &mGrid->VertexBufferView());
+	//mCommandList->IASetIndexBuffer(&mGrid->IndexBufferView());
+	mCommandList->IASetVertexBuffers(0, 1, &mBox->VertexBufferView());
+	mCommandList->IASetIndexBuffer(&mBox->IndexBufferView());
+	/*mCommandList->IASetVertexBuffers(0, 1, &mSphere->VertexBufferView());
+	mCommandList->IASetIndexBuffer(&mSphere->IndexBufferView());*/
 	mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-	auto boxSubmesh = mGeo->DrawArgs[Box::GeometryName];
-	auto pyramidSubmesh = mGeo->DrawArgs[Pyramid::GeometryName];
+	/*auto cylinderMesh = mCylinder->DrawArgs["Cylinder"];
+	mCommandList->DrawIndexedInstanced(cylinderMesh.IndexCount, 1, cylinderMesh.StartIndexLocation, cylinderMesh.BaseVertexLocation, 0);*/
+	/*auto sphereMesh = mSphere->DrawArgs["Sphere"];
+	mCommandList->DrawIndexedInstanced(sphereMesh.IndexCount, 1, sphereMesh.StartIndexLocation, sphereMesh.BaseVertexLocation, 0);*/
+	//auto gridMesh = mGrid->DrawArgs["Grid"];
+	//mCommandList->DrawIndexedInstanced(gridMesh.IndexCount, 1, gridMesh.StartIndexLocation, gridMesh.BaseVertexLocation, 0);
+	auto boxMesh = mBox->DrawArgs["Box"];
+	mCommandList->DrawIndexedInstanced(boxMesh.IndexCount, 1, boxMesh.StartIndexLocation, boxMesh.BaseVertexLocation, 0);
+	//auto boxSubmesh = mGeo->DrawArgs[Box::GeometryName];
+	//auto pyramidSubmesh = mGeo->DrawArgs[Pyramid::GeometryName];
 	
-	mCommandList->DrawIndexedInstanced(
-		boxSubmesh.IndexCount,
-		1, boxSubmesh.StartIndexLocation,
-		boxSubmesh.BaseVertexLocation, 0
-	);
+	//mCommandList->DrawIndexedInstanced(
+	//	boxSubmesh.IndexCount,
+	//	1, boxSubmesh.StartIndexLocation,
+	//	boxSubmesh.BaseVertexLocation, 0
+	//);
 
-	// Offset to the CBV in the descriptor heap for this object
-	auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-	cbvHandle.Offset(1, mCbvSrvDescriptorSize);
+	//// Offset to the CBV in the descriptor heap for this object
+	//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+	//cbvHandle.Offset(1, mCbvSrvDescriptorSize);
 
-	mCommandList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+	//mCommandList->SetGraphicsRootDescriptorTable(0, cbvHandle);
 
-	mCommandList->DrawIndexedInstanced(
-		pyramidSubmesh.IndexCount,
-		1, pyramidSubmesh.StartIndexLocation,
-		pyramidSubmesh.BaseVertexLocation, 0
-	);
+	//mCommandList->DrawIndexedInstanced(
+	//	pyramidSubmesh.IndexCount,
+	//	1, pyramidSubmesh.StartIndexLocation,
+	//	pyramidSubmesh.BaseVertexLocation, 0
+	//);
 
 	// indicate a state transition 
 	mCommandList->ResourceBarrier(1,
@@ -200,7 +222,7 @@ void BoxApp::BuildDescriptorHeaps() {
 void BoxApp::BuildConstantBuffers() {
 	// wraps the upload buffer in a unique pointer and forwards constants to UploadBuffer constructor
 	// d3dDevice pointer, # elements in constant buffer, isConstantBuffer = true
-	UINT bufferSize = 2;
+	UINT bufferSize = 1;
 	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(md3dDevice.Get(), bufferSize, true);
 
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
@@ -226,7 +248,7 @@ void BoxApp::BuildRootSignature() {
 
 	// descriptor table describes contiguous range of descriptors in a descriptor heap
 	CD3DX12_DESCRIPTOR_RANGE cbvTable;
-	cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0);
+	cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable); // <- note all shaders can see this
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(1, slotRootParameter, 0, nullptr,
@@ -321,10 +343,10 @@ void BoxApp::BuildBoxPositions() {
 
 	// Load data from system-memory -> CPU_UPLOAD_HEAP -> GPU_UPLOAD_HEAP (the vertex and index data are constant and only need be loaded once)
 	// the ID3D12Resource here is a default buffer
-	mBoxPosData->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), posVertices.data(), vbByteSize,
-		mBoxPosData->VertexBufferUploader);
-	mBoxPosData->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), mBoxIndices.data(), mibByteSize,
-		mBoxPosData->IndexBufferUploader);
+	d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), posVertices.data(), vbByteSize,
+		mBoxPosData->VertexBufferGPU);
+	d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), mBoxIndices.data(), mibByteSize,
+		mBoxPosData->IndexBufferGPU);
 
 	mBoxPosData->VertexByteStride = sizeof(VPosData);
 	mBoxPosData->VertexBufferByteSize = vbByteSize;
@@ -444,6 +466,182 @@ void BoxApp::BuildGeometry() {
 	geometry.swap(mGeo);
 }
 
+void BoxApp::BuildCylinder() {
+	GeometryGenerator generator;
+	GeometryGenerator::MeshData data = generator.CreateCylinder(1.0f, 0.5f, 20.0f, 20, 20);
+	auto i = data.GetIndices16();
+	auto vertices = data.Vertices;
+	std::vector<VertexTypes::GenericVertex> v;
+	std::for_each(vertices.begin(), vertices.end(), [&](const GeometryGenerator::Vertex& vertex) {
+		v.emplace_back(VertexTypes::GenericVertex({ vertex.Position, XMFLOAT4(Colors::Black) }));
+	});
+	
+
+	UINT vbByteSize = (UINT)v.size() * sizeof(VertexTypes::GenericVertex);
+	UINT ibByteSize = (UINT)i.size() * sizeof(std::uint16_t);
+	auto geometry = std::make_unique<MeshGeometry>();
+	geometry->Name = "D3D Cylinder";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geometry->VertexBufferCPU));
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geometry->IndexBufferCPU));
+
+	CopyMemory(geometry->VertexBufferCPU->GetBufferPointer(),  v.data(), vbByteSize);
+	CopyMemory(geometry->IndexBufferCPU->GetBufferPointer(), i.data(), ibByteSize);
+
+	geometry->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), v.data(), vbByteSize, geometry->VertexBufferUploader);
+	geometry->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), i.data(), ibByteSize, geometry->IndexBufferUploader);
+
+	geometry->IndexBufferByteSize = ibByteSize;
+	geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geometry->VertexBufferByteSize = vbByteSize;
+	geometry->VertexByteStride = sizeof(VertexTypes::GenericVertex);
+	
+	SubmeshGeometry submesh;
+	submesh.BaseVertexLocation = 0;
+	submesh.IndexCount = (UINT)i.size();
+	submesh.StartIndexLocation = 0;
+	geometry->DrawArgs["Cylinder"] = submesh;
+
+	mInputLayout = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+	};
+
+	std::swap(mCylinder, geometry);
+}
+
+void BoxApp::BuildGrid() {
+	GeometryGenerator generator;
+	GeometryGenerator::MeshData data = generator.CreateGrid(10.0f, 20.0f, 20, 20);
+	auto i = data.GetIndices16();
+	auto vertices = data.Vertices;
+	std::vector<VertexTypes::GenericVertex> v;
+	std::for_each(vertices.begin(), vertices.end(), [&](const GeometryGenerator::Vertex& vertex) {
+		v.emplace_back(VertexTypes::GenericVertex({ vertex.Position, XMFLOAT4(Colors::Black) }));
+	});
+
+
+	UINT vbByteSize = (UINT)v.size() * sizeof(VertexTypes::GenericVertex);
+	UINT ibByteSize = (UINT)i.size() * sizeof(std::uint16_t);
+	auto geometry = std::make_unique<MeshGeometry>();
+	geometry->Name = "D3D Grid";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geometry->VertexBufferCPU));
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geometry->IndexBufferCPU));
+
+	CopyMemory(geometry->VertexBufferCPU->GetBufferPointer(), v.data(), vbByteSize);
+	CopyMemory(geometry->IndexBufferCPU->GetBufferPointer(), i.data(), ibByteSize);
+
+	geometry->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), v.data(), vbByteSize, geometry->VertexBufferUploader);
+	geometry->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), i.data(), ibByteSize, geometry->IndexBufferUploader);
+
+	geometry->IndexBufferByteSize = ibByteSize;
+	geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geometry->VertexBufferByteSize = vbByteSize;
+	geometry->VertexByteStride = sizeof(VertexTypes::GenericVertex);
+
+	SubmeshGeometry submesh;
+	submesh.BaseVertexLocation = 0;
+	submesh.IndexCount = (UINT)i.size();
+	submesh.StartIndexLocation = 0;
+	geometry->DrawArgs["Grid"] = submesh;
+
+	mInputLayout = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	std::swap(mGrid, geometry);
+}
+
+void BoxApp::BuildBox() {
+	GeometryGenerator generator;
+	GeometryGenerator::MeshData data = generator.CreateBox(5.0f, 10.0f, 5.0f, 2);
+	auto i = data.GetIndices16();
+	auto vertices = data.Vertices;
+	std::vector<VertexTypes::GenericVertex> v;
+	std::for_each(vertices.begin(), vertices.end(), [&](const GeometryGenerator::Vertex& vertex) {
+		v.emplace_back(VertexTypes::GenericVertex({ vertex.Position, XMFLOAT4(Colors::Black) }));
+	});
+
+
+	UINT vbByteSize = (UINT)v.size() * sizeof(VertexTypes::GenericVertex);
+	UINT ibByteSize = (UINT)i.size() * sizeof(std::uint16_t);
+	auto geometry = std::make_unique<MeshGeometry>();
+	geometry->Name = "D3D Sphere";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geometry->VertexBufferCPU));
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geometry->IndexBufferCPU));
+
+	CopyMemory(geometry->VertexBufferCPU->GetBufferPointer(), v.data(), vbByteSize);
+	CopyMemory(geometry->IndexBufferCPU->GetBufferPointer(), i.data(), ibByteSize);
+
+	geometry->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), v.data(), vbByteSize, geometry->VertexBufferUploader);
+	geometry->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), i.data(), ibByteSize, geometry->IndexBufferUploader);
+
+	geometry->IndexBufferByteSize = ibByteSize;
+	geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geometry->VertexBufferByteSize = vbByteSize;
+	geometry->VertexByteStride = sizeof(VertexTypes::GenericVertex);
+
+	SubmeshGeometry submesh;
+	submesh.BaseVertexLocation = 0;
+	submesh.IndexCount = (UINT)i.size();
+	submesh.StartIndexLocation = 0;
+	geometry->DrawArgs["Box"] = submesh;
+
+	mInputLayout = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	std::swap(mBox, geometry);
+}
+
+void BoxApp::BuildSphere() {
+	GeometryGenerator generator;
+	GeometryGenerator::MeshData data = generator.CreateGeosphere(1.5f, 5);
+	auto i = data.GetIndices16();
+	auto vertices = data.Vertices;
+	std::vector<VertexTypes::GenericVertex> v;
+	std::for_each(vertices.begin(), vertices.end(), [&](const GeometryGenerator::Vertex& vertex) {
+		v.emplace_back(VertexTypes::GenericVertex({ vertex.Position, XMFLOAT4(Colors::Black) }));
+	});
+
+
+	UINT vbByteSize = (UINT)v.size() * sizeof(VertexTypes::GenericVertex);
+	UINT ibByteSize = (UINT)i.size() * sizeof(std::uint16_t);
+	auto geometry = std::make_unique<MeshGeometry>();
+	geometry->Name = "D3D Sphere";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geometry->VertexBufferCPU));
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geometry->IndexBufferCPU));
+
+	CopyMemory(geometry->VertexBufferCPU->GetBufferPointer(), v.data(), vbByteSize);
+	CopyMemory(geometry->IndexBufferCPU->GetBufferPointer(), i.data(), ibByteSize);
+
+	geometry->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), v.data(), vbByteSize, geometry->VertexBufferUploader);
+	geometry->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), i.data(), ibByteSize, geometry->IndexBufferUploader);
+
+	geometry->IndexBufferByteSize = ibByteSize;
+	geometry->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geometry->VertexBufferByteSize = vbByteSize;
+	geometry->VertexByteStride = sizeof(VertexTypes::GenericVertex);
+
+	SubmeshGeometry submesh;
+	submesh.BaseVertexLocation = 0;
+	submesh.IndexCount = (UINT)i.size();
+	submesh.StartIndexLocation = 0;
+	geometry->DrawArgs["Sphere"] = submesh;
+
+	mInputLayout = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	std::swap(mSphere, geometry);
+}
+
 void BoxApp::BuildPSO() {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
 	ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -461,7 +659,7 @@ void BoxApp::BuildPSO() {
 
 	auto rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	rasterizer.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	// rasterizer.CullMode = D3D12_CULL_MODE_FRONT;
+	// rasterizer.CullMode = D3D12_CULL_MODE_NONE;
 
 	psoDesc.RasterizerState = rasterizer;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);

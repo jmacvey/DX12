@@ -14,3 +14,4 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 #include "d3dUtil.h"
+#include <memory.h>

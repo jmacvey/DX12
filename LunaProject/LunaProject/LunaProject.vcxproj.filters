@@ -61,9 +61,6 @@
     <Filter Include="Notes\C6.Drawing\PipelineStateObject">
       <UniqueIdentifier>{8c5e810b-a7c4-4dbb-bc9a-cf489d4dd73a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Shaders">
-      <UniqueIdentifier>{65cc1052-cf52-41df-a0f7-43644dab9d57}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Exercises">
       <UniqueIdentifier>{e4ba8699-b617-43dd-a0e8-cd93e4f8b542}</UniqueIdentifier>
     </Filter>
@@ -180,6 +177,18 @@
     <ClInclude Include="Box.h">
       <Filter>Header Files\Geometry</Filter>
     </ClInclude>
+    <ClInclude Include="FrameResource.h">
+      <Filter>Header Files\LunaUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderItem.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometryGenerator.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="ShapesApp.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -209,11 +218,20 @@
     <ClCompile Include="Pyramid.cpp">
       <Filter>Source Files\Geometry</Filter>
     </ClCompile>
-    <ClCompile Include="BoxDriver.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Box.cpp">
       <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="FrameResource.cpp">
+      <Filter>Source Files\LunaUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="GeometryGenerator.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapesApp.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapesDriver.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
