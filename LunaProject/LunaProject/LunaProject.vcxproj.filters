@@ -189,6 +189,12 @@
     <ClInclude Include="ShapesApp.h">
       <Filter>Header Files\Apps</Filter>
     </ClInclude>
+    <ClInclude Include="LandAndWaves.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
+    <ClInclude Include="Waves.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -227,11 +233,17 @@
     <ClCompile Include="GeometryGenerator.cpp">
       <Filter>Source Files\Geometry</Filter>
     </ClCompile>
-    <ClCompile Include="ShapesApp.cpp">
+    <ClCompile Include="LandAndWaves.cpp">
       <Filter>Source Files\Apps</Filter>
     </ClCompile>
-    <ClCompile Include="ShapesDriver.cpp">
+    <ClCompile Include="LandNWavesDriver.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapesApp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Waves.cpp">
+      <Filter>Source Files\Geometry</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

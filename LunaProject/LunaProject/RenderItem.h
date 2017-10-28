@@ -9,7 +9,7 @@ namespace ShapesDemo {
 	struct RenderItem {
 		inline RenderItem() { }
 		inline RenderItem(UINT numFrameResources, D3D12_PRIMITIVE_TOPOLOGY primitiveType) : NumFramesDirty(numFrameResources), PrimitiveType(primitiveType) {}
-
+		inline RenderItem(UINT numFrameResources) : NumFramesDirty(numFrameResources) {};
 		// World transform for object given in local coordinate space
 		XMFLOAT4X4 World = MathHelper::Identity4x4();
 
