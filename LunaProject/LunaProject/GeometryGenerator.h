@@ -61,6 +61,10 @@ public:
 
 	MeshData CreateGrid(float width, float depth, uint32 m, uint32 n);
 
+	MeshData CreateHyperboloidOneSheet(float height, float a, float b, float c, uint32 sliceCount, uint32 stackCount);
+
+	MeshData CreateEllipsoid(float a, float b, float c, uint32 sliceCount, uint32 stackCount);
+
 private:
 
 	void Subdivide(MeshData& meshData);
@@ -70,6 +74,12 @@ private:
 	void BuildCylinderTopCap(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount, MeshData& meshData);
 
 	void BuildCylinderBottomCap(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount, MeshData& meshData);
+
+	void BuildHyperboloidCap(float height, float a, float b, float c, uint32 sliceCount, uint32 stackCount, MeshData& meshData, bool bottom = false);
+
+	float CalculateMagRhoForHyperboloid(float theta, float k, float a, float b, float c);
+
+	float CalculateMagRhoForEllipsoid(float theta, float k, float a, float b, float c);
 };
 
 #endif

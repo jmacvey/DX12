@@ -5,6 +5,7 @@
 #include "D3DApp.h"
 #include "Vertex.h"
 #include "GeometryGenerator.h"
+#include "GeometricObject.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -53,10 +54,7 @@ private:
 	void BuildPSO();
 	void SetScissorRects();
 	void BuildGeometry();
-	void BuildCylinder();
-	void BuildSphere();
-	void BuildGrid();
-	void BuildBox();
+	void BuildGeometricObject();
 
 private:
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
@@ -71,10 +69,7 @@ private:
 	unique_ptr<MeshGeometry> mBoxPosData = nullptr;
 	unique_ptr<MeshGeometry> mPyramidData = nullptr;
 	unique_ptr<MeshGeometry> mGeo = nullptr;
-	unique_ptr<MeshGeometry> mCylinder = nullptr;
-	unique_ptr<MeshGeometry> mSphere = nullptr;
-	unique_ptr<MeshGeometry> mGrid = nullptr;
-	unique_ptr<MeshGeometry> mBox = nullptr;
+	unique_ptr<GeometricObject> mObject = nullptr;
 
 	// index data
 	std::array<std::uint16_t, 36> mBoxIndices;

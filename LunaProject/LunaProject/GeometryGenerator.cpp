@@ -192,7 +192,113 @@ GeometryGenerator::MeshData GeometryGenerator::CreateBox(float width, float heig
 }
 
 GeometryGenerator::MeshData GeometryGenerator::CreateSphere(float radius, uint32 sliceCount, uint32 stackCount) {
-	return MeshData();
+	MeshData meshData;
+
+	//
+	// Compute the vertices stating at the top pole and moving down the stacks.
+	//
+
+	// Poles: note that there will be texture coordinate distortion as there is
+	// not a unique point on the texture map to assign to the pole when mapping
+	// a rectangular texture onto a sphere.
+	Vertex topVertex(0.0f, +radius, 0.0f, 0.0f, +1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	Vertex bottomVertex(0.0f, -radius, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+
+	meshData.Vertices.push_back(topVertex);
+
+	float phiStep = XM_PI / stackCount;
+	float thetaStep = 2.0f*XM_PI / sliceCount;
+
+	// Compute vertices for each stack ring (do not count the poles as rings).
+	for (uint32 i = 1; i <= stackCount - 1; ++i)
+	{
+		float phi = i*phiStep;
+
+		// Vertices of ring.
+		for (uint32 j = 0; j <= sliceCount; ++j)
+		{
+			float theta = j*thetaStep;
+
+			Vertex v;
+
+			// spherical to cartesian
+			v.Position.x = radius*sinf(phi)*cosf(theta);
+			v.Position.y = radius*cosf(phi);
+			v.Position.z = radius*sinf(phi)*sinf(theta);
+
+			// Partial derivative of P with respect to theta
+			v.TangentU.x = -radius*sinf(phi)*sinf(theta);
+			v.TangentU.y = 0.0f;
+			v.TangentU.z = +radius*sinf(phi)*cosf(theta);
+
+			XMVECTOR T = XMLoadFloat3(&v.TangentU);
+			XMStoreFloat3(&v.TangentU, XMVector3Normalize(T));
+
+			XMVECTOR p = XMLoadFloat3(&v.Position);
+			XMStoreFloat3(&v.Normal, XMVector3Normalize(p));
+
+			v.TexC.x = theta / XM_2PI;
+			v.TexC.y = phi / XM_PI;
+
+			meshData.Vertices.push_back(v);
+		}
+	}
+
+	meshData.Vertices.push_back(bottomVertex);
+
+	//
+	// Compute indices for top stack.  The top stack was written first to the vertex buffer
+	// and connects the top pole to the first ring.
+	//
+
+	for (uint32 i = 1; i <= sliceCount; ++i)
+	{
+		meshData.Indices32.push_back(0);
+		meshData.Indices32.push_back(i + 1);
+		meshData.Indices32.push_back(i);
+	}
+
+	//
+	// Compute indices for inner stacks (not connected to poles).
+	//
+
+	// Offset the indices to the index of the first vertex in the first ring.
+	// This is just skipping the top pole vertex.
+	uint32 baseIndex = 1;
+	uint32 ringVertexCount = sliceCount + 1;
+	for (uint32 i = 0; i < stackCount - 2; ++i)
+	{
+		for (uint32 j = 0; j < sliceCount; ++j)
+		{
+			meshData.Indices32.push_back(baseIndex + i*ringVertexCount + j);
+			meshData.Indices32.push_back(baseIndex + i*ringVertexCount + j + 1);
+			meshData.Indices32.push_back(baseIndex + (i + 1)*ringVertexCount + j);
+
+			meshData.Indices32.push_back(baseIndex + (i + 1)*ringVertexCount + j);
+			meshData.Indices32.push_back(baseIndex + i*ringVertexCount + j + 1);
+			meshData.Indices32.push_back(baseIndex + (i + 1)*ringVertexCount + j + 1);
+		}
+	}
+
+	//
+	// Compute indices for bottom stack.  The bottom stack was written last to the vertex buffer
+	// and connects the bottom pole to the bottom ring.
+	//
+
+	// South pole vertex was added last.
+	uint32 southPoleIndex = (uint32)meshData.Vertices.size() - 1;
+
+	// Offset the indices to the index of the first vertex in the last ring.
+	baseIndex = southPoleIndex - ringVertexCount;
+
+	for (uint32 i = 0; i < sliceCount; ++i)
+	{
+		meshData.Indices32.push_back(southPoleIndex);
+		meshData.Indices32.push_back(baseIndex + i);
+		meshData.Indices32.push_back(baseIndex + i + 1);
+	}
+
+	return meshData;
 }
 
 GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uint32 numSubdivisions) {
@@ -228,7 +334,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 		sphere.Vertices[i].Position = pos[i];
 	}
 
-	for (int i = 0; i < division; ++i) {
+	for (uint32 i = 0; i < division; ++i) {
 		Subdivide(sphere);
 	}
 
@@ -264,7 +370,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 }
 
 GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount) {
-	
+
 	MeshData cylinder;
 	const float heightOffset = -0.5f * height;
 	const float dh = height / stackCount;
@@ -382,55 +488,6 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 	}
 
 	return meshData;
-	//const float halfWidth = 0.5f*width; // <- total column width
-	//const float halfDepth = 0.5f*depth; // <- total row width
-
-	//const uint32 numVertices = m*n;
-	//const float dx = width / (n - 1); // <- face width
-	//const float dz = depth / (m - 1); // <- face height
-	//const float du = 1.0f / (n - 1);
-	//const float dv = 1.0f / (m - 1);
-	//MeshData grid;
-	//grid.Vertices.resize(numVertices);
-	//float z, x;
-	//for (uint32 i = 0; i < m; ++i) {
-	//	z = halfDepth - dz * i;
-	//	for (uint32 j = 0; j < n; ++j) {
-	//		x = -halfWidth + j * dx;
-	//		uint32 offset = i * n + j;
-	//		grid.Vertices[offset].Position = XMFLOAT3(x, 0.0f, z);
-	//		grid.Vertices[offset].Normal = XMFLOAT3(0.0f, 1.0f, 0.0f);
-	//		grid.Vertices[offset].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	//		grid.Vertices[offset].TexC = XMFLOAT2(du, dv);
-	//	}
-	//}
-
-	//// triangle faces = num faces * 2
-	//const uint32 triangleFaceCount = (m - 1)*(n - 1) * 2;
-
-	//// 3 indices per face
-	//grid.Indices32.resize(triangleFaceCount * 3);
-
-	//uint32 k = 0;
-	//uint32 columnCount = m - 1;
-	//uint32 rowCount = n - 1;
-	//for (uint32 i = 0; i < columnCount; ++i) {
-	//	for (uint32 j = 0; j < rowCount; ++j) {
-
-	//		uint32 topLeft = i * n + j;
-	//		uint32 topRight = topLeft + 1;
-
-	//		grid.Indices32[k] = topLeft;
-	//		grid.Indices32[k + 1] = topRight;
-	//		grid.Indices32[k + 2] = topLeft + n;
-
-	//		grid.Indices32[k + 3] = topRight;
-	//		grid.Indices32[k + 4] = topRight + n;
-	//		grid.Indices32[k + 5] = topLeft + n;
-	//		k += 6;
-	//	}
-	//}
-	//return grid;
 }
 
 void GeometryGenerator::Subdivide(MeshData& meshData) {
@@ -574,4 +631,177 @@ void GeometryGenerator::BuildCylinderTopCap(float bottomRadius, float topRadius,
 		meshData.Indices32.emplace_back(baseIndex + i + 1);
 		meshData.Indices32.emplace_back(baseIndex + i);
 	}
+}
+
+
+GeometryGenerator::MeshData GeometryGenerator::CreateHyperboloidOneSheet(float height, float a, float b,
+	float c, uint32 sliceCount, uint32 stackCount) {
+	// don't allow bogus values
+	assert(sliceCount > 1);
+	assert(stackCount > 1);
+
+	MeshData hyperboloid;
+
+	// constants
+	const float scaleCoeff = a*b / c;
+	const float dTheta = XM_2PI / sliceCount;
+	const float heightOffset = - (height / 2.0f);
+	const float dh = height / stackCount;
+	const uint32 ringCount = stackCount + 1;
+
+	const uint32 ringVertexCount = sliceCount + 1;
+	float x, y, z, theta, magRho;
+	x = y = z = theta = magRho = 0;
+	for (uint32 i = 0; i < ringCount; ++i) {
+		y = i*dh + heightOffset;
+		for (uint32 j = 0; j < ringVertexCount; ++j) {
+			theta = j*dTheta;
+			magRho = CalculateMagRhoForHyperboloid(theta, y, a, b, c);
+			x = magRho*cosf(theta);
+			z = magRho*sinf(theta);
+
+			Vertex v;
+			v.Position = XMFLOAT3(x, y, z);
+			hyperboloid.Vertices.emplace_back(v);
+		}
+	}
+
+	// build indices
+	uint32 n = stackCount - 1;
+
+	uint32 bottomLeft = 0;
+	for (uint32 i = 0; i < ringCount; ++i) {
+		for (uint32 j = 0; j < sliceCount; ++j) {
+			bottomLeft = i*sliceCount + j;
+			hyperboloid.Indices32.emplace_back(bottomLeft); // bottom left
+			hyperboloid.Indices32.emplace_back(bottomLeft + sliceCount); // top left;
+			hyperboloid.Indices32.emplace_back(bottomLeft + 1); // bottom right
+			hyperboloid.Indices32.emplace_back(bottomLeft + 1); // bottom right
+			hyperboloid.Indices32.emplace_back(bottomLeft + sliceCount); // top left
+			hyperboloid.Indices32.emplace_back(bottomLeft + sliceCount + 1); // top right
+		}
+	}
+	BuildHyperboloidCap(height, a, b, c, sliceCount, stackCount, hyperboloid);
+	BuildHyperboloidCap(height, a, b, c, sliceCount, stackCount, hyperboloid, true);
+	return hyperboloid;
+}
+
+void GeometryGenerator::BuildHyperboloidCap(float height, float a, float b, float c, uint32 sliceCount, uint32 stackCount, MeshData& meshData, bool bottom) {
+	
+	const float y = bottom ? -(height / 2.0f) : +(height / 2.0f);
+	const float dTheta = XM_2PI / sliceCount;
+
+	float x, z, rho, theta;
+	const uint32 baseVertexIndex = (uint32)meshData.Vertices.size();
+	
+	for (uint32 i = 0; i <= sliceCount; ++i) {
+		theta = dTheta*i;
+		rho = CalculateMagRhoForHyperboloid(theta, y, a, b, c);
+		x = rho*cosf(theta);
+		z = rho*sinf(theta);
+		Vertex v;
+		v.Position = XMFLOAT3(x, y, z);
+		meshData.Vertices.emplace_back(v);
+	}
+
+	const uint32 centerIndex = (uint32)meshData.Vertices.size();
+	Vertex center;
+	center.Position = XMFLOAT3(0.0f, y, 0.0f);
+
+	meshData.Vertices.emplace_back(center);
+
+	for (uint32 i = 0; i < sliceCount; ++i) {
+		// center
+		meshData.Indices32.emplace_back(centerIndex);
+		if (bottom) {
+			meshData.Indices32.emplace_back(baseVertexIndex + i);
+			meshData.Indices32.emplace_back(baseVertexIndex + i + 1);
+		}
+		else {
+			meshData.Indices32.emplace_back(baseVertexIndex + i + 1);
+			meshData.Indices32.emplace_back(baseVertexIndex + i);
+		}
+
+	}
+}
+
+GeometryGenerator::MeshData GeometryGenerator::CreateEllipsoid(float a, float b, float c, uint32 sliceCount, uint32 stackCount) {
+	MeshData ellipsoid;
+	
+	assert(a > 0);
+	assert(b > 0);
+	assert(c > 0);
+
+
+	const uint32 ringCount = stackCount + 1;
+	const float dTheta = XM_2PI / sliceCount;
+	const float heightOffset = -c;
+	const float dh = c * 2.0f / (stackCount);
+	Vertex topVertex, bottomVertex;
+	topVertex.Position = XMFLOAT3(+0.0f, +c, +0.0f);
+	bottomVertex.Position = XMFLOAT3(+0.0, -c, +0.0f);
+	ellipsoid.Vertices.emplace_back(bottomVertex);
+	float x, y, z, theta, rho;
+	for (uint32 i = 1; i < stackCount; ++i) {
+		y = dh * i + heightOffset;
+		for (uint32 j = 0; j <= sliceCount; ++j) {
+			theta = dTheta*j;
+			rho = CalculateMagRhoForEllipsoid(theta, y, a, b, c);
+			x = rho*cosf(theta);
+			z = rho*sinf(theta);
+			Vertex v;
+			v.Position = XMFLOAT3(x, y, z);
+			ellipsoid.Vertices.emplace_back(v);
+		}
+	}
+
+	const uint32 baseTopIndex = (UINT)ellipsoid.Vertices.size();
+	ellipsoid.Vertices.emplace_back(topVertex);
+
+	uint32 ringVertexCount = sliceCount + 1;
+
+	for (uint32 i = 1; i < sliceCount; ++i) {
+		ellipsoid.Indices32.emplace_back(0);
+		ellipsoid.Indices32.emplace_back(i);
+		ellipsoid.Indices32.emplace_back(i + 1);
+	}
+
+	uint32 baseIndex = 1;
+	for (uint32 i = 0; i < stackCount - 2; ++i) {
+		for (uint32 j = 0; j < sliceCount; ++j) {
+			uint32 bottomLeft = baseIndex + i*ringVertexCount + j;
+			uint32 topLeft = baseIndex + (i + 1)*ringVertexCount + j;
+			ellipsoid.Indices32.emplace_back(bottomLeft);
+			ellipsoid.Indices32.emplace_back(topLeft);
+			ellipsoid.Indices32.emplace_back(topLeft + 1);
+
+			ellipsoid.Indices32.emplace_back(bottomLeft);
+			ellipsoid.Indices32.emplace_back(topLeft + 1);
+			ellipsoid.Indices32.emplace_back(bottomLeft + 1);
+		}
+	}
+
+	for (uint32 i = 0; i < sliceCount; ++i) {
+		ellipsoid.Indices32.emplace_back(baseTopIndex);
+		ellipsoid.Indices32.emplace_back(baseTopIndex - ringVertexCount + i + 1);
+		ellipsoid.Indices32.emplace_back(baseTopIndex - ringVertexCount + i);
+	}
+
+	return ellipsoid;
+}
+
+/*
+* Rho Vector is vector in plane y = k
+* Can use magnitude to calculate x, z using polar coordinates
+* where x = |Rho|*cos(theta), z = |Rho|*sin(theta)
+*/
+float GeometryGenerator::CalculateMagRhoForHyperboloid(float theta, float k, float a, float b, float c) {
+	return (a*b/c)*sqrtf(
+		(c*c + k*k) / (pow(b*cosf(theta), 2) + (pow(a*sinf(theta), 2)))
+	);
+}
+
+float GeometryGenerator::CalculateMagRhoForEllipsoid(float theta, float k, float a, float b, float c) {
+	return (a*b / c)*sqrtf(
+		(c*c - k*k) / (pow(b*cosf(theta), 2) + pow(a*sinf(theta), 2)));
 }

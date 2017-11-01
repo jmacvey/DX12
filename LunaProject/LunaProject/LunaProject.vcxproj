@@ -173,6 +173,7 @@
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="GameTimer.h" />
+    <ClInclude Include="GeometricObject.h" />
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="InitDirect3D.h" />
     <ClInclude Include="LandAndWaves.h" />
@@ -190,15 +191,16 @@
   <ItemGroup>
     <ClCompile Include="Box.cpp" />
     <ClCompile Include="BoxApp.cpp" />
+    <ClCompile Include="BoxDriver.cpp" />
     <ClCompile Include="D3DApp.cpp" />
     <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="GameTimer.cpp" />
+    <ClCompile Include="GeometricObject.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="InitDirect3D.cpp" />
     <ClCompile Include="LandAndWaves.cpp" />
-    <ClCompile Include="LandNWavesDriver.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="Pyramid.cpp" />
     <ClCompile Include="ShapesApp.cpp" />
