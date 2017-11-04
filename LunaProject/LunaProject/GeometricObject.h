@@ -9,7 +9,7 @@ class GeometricObject {
 public:
 	static const std::string SubmeshName;
 	GeometricObject() = delete;
-	GeometricObject(const std::string name);
+	GeometricObject(const std::string& name);
 
 	GeometricObject(const GeometricObject& rhs) = delete;
 

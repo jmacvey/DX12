@@ -3,7 +3,7 @@
 
 const std::string GeometricObject::SubmeshName = "submesh";
 
-GeometricObject::GeometricObject(const std::string name) : mName(name)
+GeometricObject::GeometricObject(const std::string& name) : mName(name)
 {
 }
 

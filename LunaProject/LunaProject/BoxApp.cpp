@@ -26,11 +26,6 @@ bool BoxApp::Initialize() {
 	// BuildBoxColors();
 	// BuildPyramidGeometry();
 	// BuildGeometry();
-	// BuildCylinder();
-	// BuildSphere();
-	// BuildGrid();
-	// BuildHyperboloid();
-	// BuildBox();
 	BuildGeometricObject();
 	BuildPSO();
 
