@@ -175,6 +175,7 @@
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="GeometricObject.h" />
     <ClInclude Include="GeometryGenerator.h" />
+    <ClInclude Include="GrowingPyramid.h" />
     <ClInclude Include="InitDirect3D.h" />
     <ClInclude Include="LandAndWaves.h" />
     <ClInclude Include="MathHelper.h" />
@@ -191,7 +192,6 @@
   <ItemGroup>
     <ClCompile Include="Box.cpp" />
     <ClCompile Include="BoxApp.cpp" />
-    <ClCompile Include="BoxDriver.cpp" />
     <ClCompile Include="D3DApp.cpp" />
     <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
@@ -199,10 +199,12 @@
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="GeometricObject.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="GrowingPyramid.cpp" />
     <ClCompile Include="InitDirect3D.cpp" />
     <ClCompile Include="LandAndWaves.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="Pyramid.cpp" />
+    <ClCompile Include="PyramidDriver.cpp" />
     <ClCompile Include="ShapesApp.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

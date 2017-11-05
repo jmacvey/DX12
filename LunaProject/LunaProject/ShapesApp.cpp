@@ -60,8 +60,8 @@ void ShapesApp::Update(const GameTimer& gt) {
 	}
 
 	// update the constant buffers
-	UpdateObjectCBs(gt);
 	UpdateMainPassCB(gt);
+	UpdateObjectCBs(gt);
 }
 
 void ShapesApp::Draw(const GameTimer& gt) {
@@ -343,7 +343,7 @@ void ShapesApp::BuildShadersAndInputLayout() {
  */
 void ShapesApp::BuildShapeGeometry() {
 	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 3);
+	GeometryGenerator::MeshData box = geoGen.CreatePyramid(2.0f, 5.0f, 0.75, 2);
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
 	GeometryGenerator::MeshData sphere = geoGen.CreateGeosphere(0.5f, 2);
 	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.3f, 3.0f, 20, 20);
@@ -400,7 +400,7 @@ void ShapesApp::BuildShapeGeometry() {
 		}
 	};
 
-	addVertices(box.Vertices, XMFLOAT4(DirectX::Colors::DarkGreen));
+	addVertices(box.Vertices, XMFLOAT4(DirectX::Colors::BlueViolet));
 	addVertices(grid.Vertices, XMFLOAT4(DirectX::Colors::ForestGreen));
 	addVertices(sphere.Vertices, XMFLOAT4(DirectX::Colors::Crimson));
 	addVertices(cylinder.Vertices, XMFLOAT4(DirectX::Colors::SteelBlue));
@@ -499,7 +499,7 @@ void ShapesApp::BuildRenderItems() {
 	};
 	
 	auto boxRitem = std::make_unique<ShapesDemo::RenderItem>(mNumFrameResources, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 10.0f*.75f/2.0f, 0.0f));
 	boxRitem->ObjCBIndex = 0;
 	boxRitem->Geo = mGeometries["shapeGeo"].get();
 	addGeometricParams(boxRitem, boxRitem->Geo->DrawArgs["box"]);

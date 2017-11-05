@@ -405,8 +405,8 @@ void BoxApp::BuildGeometricObject() {
 	geo->SetInputLayout(mInputLayout);
 
 	// Ellipsoid
-	auto ellipsoid = geoGen.CreateEllipsoid(1.0f, 1.0f, 2.0f, 20, 10);
-	geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), ellipsoid);
+	// auto ellipsoid = geoGen.CreateEllipsoid(1.0f, 1.0f, 2.0f, 20, 10);
+	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), ellipsoid);
 	
 	// Sphere
 	// auto sphere = geoGen.CreateSphere(1.0f, 20, 10);
@@ -432,7 +432,28 @@ void BoxApp::BuildGeometricObject() {
 	// auto box = geoGen.CreateBox(10.0f, 7.0f, 5.0f, 3);
 	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), box);
 
+	// Pyramid
+	auto pyramid = geoGen.CreatePyramid(10.0f, 5.0f, 0.8f, 3);
+	geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), pyramid);
 	geo.swap(mObject);
+
+	// XY Trace rotated object
+	// std::vector<XMFLOAT2> points;
+	// cone 
+	// float m = 1.5f;
+	// for (uint16_t i = 1; i < 10; ++i) {
+		// points.emplace_back(XMFLOAT2(static_cast<float>(i), m*i + 1.0f));
+	// }
+
+	// paraboloid
+	// for (uint16_t i = 0; i < 10; ++i) {
+	//	 points.emplace_back(XMFLOAT2(static_cast<float>(i), 0.25f*(i*i - 10.0f)));
+	// }
+	// auto obj = geoGen.CreateObjectFromXYTrace(points, 10, XM_2PI);
+	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), obj);
+	// geo.swap(mObject);
+
+
 }
 
 void BoxApp::BuildPyramidGeometry() {

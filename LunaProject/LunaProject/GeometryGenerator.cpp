@@ -790,6 +790,130 @@ GeometryGenerator::MeshData GeometryGenerator::CreateEllipsoid(float a, float b,
 	return ellipsoid;
 }
 
+GeometryGenerator::MeshData GeometryGenerator::CreatePyramid(float width, float height, float p, uint32 numSubdivisions) {
+	assert(width > 0);
+	assert(height > 0);
+	assert(p > 0);
+
+	const float percentHeight = p*height;
+	const float farX = +width / 2.0f;
+	const float farZ = +width / 2.0f;
+	const float top = +percentHeight / 2.0f;
+	const float bottom = -percentHeight / 2.0f;
+
+	MeshData pyramid;
+	auto pushVertex = [&](const Vertex& v) { pyramid.Vertices.emplace_back(v); };
+	
+	Vertex bottomPosXZ, bottomPosXNegZ, bottomNegXZ, bottomNegXPosZ;
+	bottomPosXZ.Position = XMFLOAT3(+farX, bottom, +farZ);
+	bottomPosXNegZ.Position = XMFLOAT3(+farX, bottom, -farZ);
+	bottomNegXZ.Position = XMFLOAT3(-farX, bottom, -farZ);
+	bottomNegXPosZ.Position = XMFLOAT3(-farX, bottom, +farZ);
+
+	// standard pyramid
+	if (1.0f - p <= 0.005) {
+		Vertex topVertex;
+		topVertex.Position = XMFLOAT3(0.0f, top, 0.0f);
+
+		pushVertex(topVertex);
+		pushVertex(bottomPosXZ);
+		pushVertex(bottomPosXNegZ);
+		pushVertex(bottomNegXZ);
+		pushVertex(bottomNegXPosZ);
+
+		std::vector<uint32_t> indices = {
+			0, 1, 2, // right
+			0, 2, 3, // back
+			0, 3, 4, // left
+			0, 4, 1, // front
+			4, 3, 2,
+			4, 2, 1
+		};
+
+		pyramid.Indices32 = std::move(indices);
+	}
+	else {
+		// calculate far x and z using similar triangles
+		const float halfBaseDiagonal = width / 2.0f * sqrtf(2.0f);
+		const float topFarX = (1 - p)*halfBaseDiagonal / sqrtf(2.0f);
+		const float topFarZ = topFarX;
+
+		Vertex topPosXZ, topPosXNegZ, topNegXZ, topNegXPosZ;
+		topPosXZ.Position = XMFLOAT3(+topFarX, top, +topFarZ);
+		topPosXNegZ.Position = XMFLOAT3(+topFarX, top, -topFarZ);
+		topNegXZ.Position = XMFLOAT3(-topFarX, top, -topFarZ);
+		topNegXPosZ.Position = XMFLOAT3(-topFarX, top, +topFarZ);
+
+		pushVertex(topPosXZ);
+		pushVertex(topPosXNegZ);
+		pushVertex(topNegXZ);
+		pushVertex(topNegXPosZ);
+		pushVertex(bottomPosXZ);
+		pushVertex(bottomPosXNegZ);
+		pushVertex(bottomNegXZ);
+		pushVertex(bottomNegXPosZ);
+
+		std::vector<uint32_t> indices = { 
+			1, 0, 4,
+			1, 4, 5,
+			2, 1, 5,
+			2, 5, 6,
+			2, 6, 7,
+			2, 7, 3,
+			0, 3, 7,
+			0, 7, 4,
+			4, 6, 5,
+			4, 7, 6,
+			3, 1, 2,
+			3, 0, 1
+		};
+		pyramid.Indices32 = std::move(indices);
+	}
+	auto divisions = std::min<uint32_t>(6u, numSubdivisions);
+	for (uint32 i = 0; i < divisions; ++i)
+		Subdivide(pyramid);
+
+	return pyramid;
+}
+
+GeometryGenerator::MeshData GeometryGenerator::CreateObjectFromXYTrace(const std::vector<XMFLOAT2>& points, uint32 sliceCount, float degrees) {
+	MeshData object;
+	float dTheta = degrees / sliceCount;
+	for (auto& point : points) {
+		for (uint32 i = 0; i <= sliceCount; ++i) {
+			Vertex v;
+			v.Position = XMFLOAT3(point.x*cosf(i*dTheta), point.y, -point.x*sinf(i*dTheta));
+			object.Vertices.emplace_back(v);
+		}
+	}
+
+	uint32 numPoints = (UINT)points.size();
+	uint32 ringVertexCount = sliceCount + 1;
+	for (uint32 i = 0; i < numPoints - 1; ++i) {
+		for (uint32 j = 0; j < sliceCount; ++j) {
+			uint32 topLeft = i*ringVertexCount + j;
+			object.Indices32.emplace_back(topLeft);
+			object.Indices32.emplace_back(topLeft + 1);
+			object.Indices32.emplace_back(topLeft + ringVertexCount + 1);
+			object.Indices32.emplace_back(topLeft + ringVertexCount + 1);
+			object.Indices32.emplace_back(topLeft + ringVertexCount);
+			object.Indices32.emplace_back(topLeft);
+		}
+	}
+
+	// add top
+	Vertex top;
+	top.Position = XMFLOAT3(0.0f, points[numPoints - 1].y, 0.0f);
+	object.Vertices.emplace_back(top);
+	uint32 baseTop = (UINT)object.Vertices.size() - 1;
+	for (uint32 i = 0; i <= sliceCount; ++i) {
+		object.Indices32.emplace_back(baseTop);
+		object.Indices32.emplace_back(baseTop - i - 1);
+		object.Indices32.emplace_back(baseTop - i);
+	}
+	return object;
+}
+
 /*
 * Rho Vector is vector in plane y = k
 * Can use magnitude to calculate x, z using polar coordinates
@@ -805,3 +929,4 @@ float GeometryGenerator::CalculateMagRhoForEllipsoid(float theta, float k, float
 	return (a*b / c)*sqrtf(
 		(c*c - k*k) / (pow(b*cosf(theta), 2) + pow(a*sinf(theta), 2)));
 }
+

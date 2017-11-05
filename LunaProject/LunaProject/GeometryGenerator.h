@@ -65,6 +65,9 @@ public:
 
 	MeshData CreateEllipsoid(float a, float b, float c, uint32 sliceCount, uint32 stackCount);
 
+	MeshData CreatePyramid(float width, float height, float p, uint32 numSubdivisions);
+
+	MeshData CreateObjectFromXYTrace(const std::vector<XMFLOAT2>& points, uint32 sliceCount, float degrees);
 private:
 
 	void Subdivide(MeshData& meshData);
