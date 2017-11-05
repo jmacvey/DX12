@@ -183,6 +183,7 @@
     <ClInclude Include="FrameResource.h" />
     <ClInclude Include="RenderItem.h" />
     <ClInclude Include="ShapesApp.h" />
+    <ClInclude Include="SkullGeometry.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="UploadBuffer.h" />
@@ -206,6 +207,7 @@
     <ClCompile Include="Pyramid.cpp" />
     <ClCompile Include="PyramidDriver.cpp" />
     <ClCompile Include="ShapesApp.cpp" />
+    <ClCompile Include="SkullGeometry.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

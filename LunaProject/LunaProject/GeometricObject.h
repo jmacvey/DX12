@@ -15,18 +15,28 @@ public:
 
 	GeometricObject& operator=(const GeometricObject& rhs) = delete;
 
-	void BuildGeometry(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, GeometryGenerator::MeshData& meshData);
+	void AddObject(GeometryGenerator::MeshData& meshData);
+	void AddObject(const std::vector<GeometryGenerator::Vertex>& vertexList, const std::vector<uint16_t>& indexList);
+
+	void BuildGeometry(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> GetInputLayout() const;
 	void SetInputLayout(const std::vector<D3D12_INPUT_ELEMENT_DESC>& inputLayout);
 
 	MeshGeometry* GetGeometry();
 
+	SubmeshGeometry GetSubmesh(uint32_t submeshIndex) const;
 
 private:
+
+	void ResetBufferSizes();
+	void TryInitializeGeometry();
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 	std::unique_ptr<MeshGeometry> mGeo;
 	std::string mName;
+	uint32_t mSize = 0;
+	std::vector<GeometryGenerator::Vertex> mVertices;
+	std::vector<uint16_t> mIndices;
 };
 
 #endif

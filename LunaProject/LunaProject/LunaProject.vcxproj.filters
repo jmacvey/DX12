@@ -201,6 +201,9 @@
     <ClInclude Include="GrowingPyramid.h">
       <Filter>Header Files\Apps</Filter>
     </ClInclude>
+    <ClInclude Include="SkullGeometry.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -256,6 +259,9 @@
     </ClCompile>
     <ClCompile Include="PyramidDriver.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SkullGeometry.cpp">
+      <Filter>Source Files\Geometry</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -7,41 +7,66 @@ GeometricObject::GeometricObject(const std::string& name) : mName(name)
 {
 }
 
-void GeometricObject::BuildGeometry(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, GeometryGenerator::MeshData& meshData)
+void GeometricObject::AddObject(GeometryGenerator::MeshData& meshData)
 {
-	auto vbByteSize = (UINT)meshData.Vertices.size() * sizeof(GeometryGenerator::Vertex);
-	auto ibByteSize = (UINT)meshData.GetIndices16().size() * sizeof(std::uint16_t);
+	TryInitializeGeometry();
+	AddObject(meshData.Vertices, meshData.GetIndices16());
+}
 
-	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = mName;
-
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-
-	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), meshData.Vertices.data(), vbByteSize);
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), meshData.GetIndices16().data(), ibByteSize);
-
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(pd3dDevice, pd3dCommandList,
-		meshData.Vertices.data(), vbByteSize,
-		geo->VertexBufferUploader);
-
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(pd3dDevice, pd3dCommandList,
-		meshData.GetIndices16().data(), ibByteSize,
-		geo->IndexBufferUploader);
-
-	geo->IndexBufferByteSize = ibByteSize;
-	geo->VertexBufferByteSize = vbByteSize;
-	geo->VertexByteStride = sizeof(GeometryGenerator::Vertex);
-	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
-
+void GeometricObject::AddObject(const std::vector<GeometryGenerator::Vertex>& vertexList, const std::vector<uint16_t>& indexList)
+{
 	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)meshData.GetIndices16().size();
-	submesh.StartIndexLocation = 0;
-	submesh.BaseVertexLocation = 0;
+	submesh.IndexCount = (UINT)indexList.size();
+	submesh.StartIndexLocation = (UINT)mIndices.size();
+	submesh.BaseVertexLocation = (UINT)mVertices.size();
+	mGeo->DrawArgs[GeometricObject::SubmeshName + std::to_string(mSize++)] = submesh;
 
-	geo->DrawArgs["submesh"] = submesh;
+	mIndices.insert(mIndices.end(), indexList.begin(), indexList.end());
+	mVertices.insert(mVertices.end(), vertexList.begin(), vertexList.end());
+	ResetBufferSizes();
+}
 
-	geo.swap(mGeo);
+void GeometricObject::BuildGeometry(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	if (mSize == 0) {
+		return;
+	}
+
+	ThrowIfFailed(D3DCreateBlob(mGeo->VertexBufferByteSize, &mGeo->VertexBufferCPU));
+	ThrowIfFailed(D3DCreateBlob(mGeo->IndexBufferByteSize, &mGeo->IndexBufferCPU));
+
+	CopyMemory(mGeo->VertexBufferCPU->GetBufferPointer(), mVertices.data(), mGeo->VertexBufferByteSize);
+	CopyMemory(mGeo->IndexBufferCPU->GetBufferPointer(), mIndices.data(), mGeo->IndexBufferByteSize);
+
+	mGeo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(pd3dDevice, pd3dCommandList,
+		mVertices.data(), mGeo->VertexBufferByteSize,
+		mGeo->VertexBufferUploader);
+
+	mGeo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(pd3dDevice, pd3dCommandList,
+		mIndices.data(), mGeo->IndexBufferByteSize,
+		mGeo->IndexBufferUploader);
+}
+SubmeshGeometry GeometricObject::GetSubmesh(uint32_t submeshIndex) const {
+	return mGeo->DrawArgs[GeometricObject::SubmeshName + std::to_string(submeshIndex)];
+}
+
+void GeometricObject::ResetBufferSizes()
+{
+	auto vbByteSize = (UINT)mVertices.size() * sizeof(GeometryGenerator::Vertex);
+	auto ibByteSize = (UINT)mIndices.size() * sizeof(uint16_t);
+
+	mGeo->IndexBufferByteSize = ibByteSize;
+	mGeo->VertexBufferByteSize = vbByteSize;
+}
+
+void GeometricObject::TryInitializeGeometry()
+{
+	if (mGeo == nullptr) {
+		mGeo = std::make_unique<MeshGeometry>();
+		mGeo->Name = mName;
+		mGeo->IndexFormat = DXGI_FORMAT_R16_UINT;
+		mGeo->VertexByteStride = sizeof(GeometryGenerator::Vertex);
+	}
 }
 
 std::vector<D3D12_INPUT_ELEMENT_DESC> GeometricObject::GetInputLayout() const {

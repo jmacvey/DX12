@@ -39,7 +39,7 @@ bool GrowingPyramid::Initialize()
 
 void GrowingPyramid::BuildRenderItems()
 {
-	auto pyramid = std::make_unique<RenderItem>(mNumFrameResources, D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	std::unique_ptr<RenderItem> pyramid;
 	auto addGeometricParams = [](const std::unique_ptr<ShapesDemo::RenderItem>& rItem,
 		const SubmeshGeometry& geo) {
 		rItem->IndexCount = geo.IndexCount;
@@ -47,12 +47,31 @@ void GrowingPyramid::BuildRenderItems()
 		rItem->StartIndexLocation = geo.StartIndexLocation;
 		rItem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	};
-	pyramid->ObjCBIndex = 0;
-	pyramid->World = MathHelper::Identity4x4();
-	pyramid->Geo = mObject->GetGeometry();
-	addGeometricParams(pyramid, pyramid->Geo->DrawArgs[GeometricObject::SubmeshName]);
 
-	mAllRenderItems.emplace_back(std::move(pyramid));
+	for (uint16_t i = 0; i < mNumPyramidFrames; ++i) {
+		pyramid = std::make_unique<RenderItem>(mNumFrameResources, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		pyramid->ObjCBIndex = i;
+
+		// height offset equation: 
+		// -(hmax - h) = -(height / 2.0f - height*p / 2.0f) = -0.5f*10.0f*(1-p)
+		// p is given as 0.1f*(imax - i) = 0.1*(10u-i), where i is the index of the render item
+
+		// width offset:
+		// base * index = 5.0f*i
+		XMStoreFloat4x4(&pyramid->World, XMMatrixTranslation(0.0f, -0.5f*(1.0f - (1.0f/mNumPyramidFrames)*(mNumPyramidFrames-i))*(10.0f), 0.0f));
+		// pyramid->World = MathHelper::Identity4x4();
+		pyramid->Geo = mObject->GetGeometry();
+		addGeometricParams(pyramid, mObject->GetSubmesh(pyramid->ObjCBIndex));
+		mAllRenderItems.emplace_back(std::move(pyramid));
+	}
+
+	auto skull = std::make_unique<RenderItem>(mNumFrameResources, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	skull->Geo = mObject->GetGeometry();
+	skull->ObjCBIndex = mNumPyramidFrames;
+	XMStoreFloat4x4(&skull->World, XMMatrixScaling(0.5f, 0.5f, 0.5f)*XMMatrixTranslation(10.0f, 0.0f, 0.0f));
+	addGeometricParams(skull, mObject->GetSubmesh(skull->ObjCBIndex));
+	
+	mAllRenderItems.emplace_back(std::move(skull));
 	for (auto& rItem : mAllRenderItems) {
 		mOpaqueRenderItems.emplace_back(rItem.get());
 	}
@@ -60,10 +79,14 @@ void GrowingPyramid::BuildRenderItems()
 
 void GrowingPyramid::BuildGeometry()
 {
-	GeometryGenerator geoGen;
-	auto pyramid = geoGen.CreatePyramid(5.0f, 10.0f, 1.0f, 2);
 	std::unique_ptr<GeometricObject> geo = std::make_unique<GeometricObject>("PyramidGeometry");
-	geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), pyramid);
+	GeometryGenerator geoGen;
+	for (uint16_t i = 10; i > 0; --i) {
+		auto pyramid = geoGen.CreatePyramid(10.0f, 10.0f, 0.1f*i, 4);
+		geo->AddObject(pyramid);
+	}
+	geo->AddObject(mSkull.GetVertices(), mSkull.GetIndices());
+	geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get());
 	geo.swap(mObject);
 }
 
@@ -247,16 +270,22 @@ void GrowingPyramid::UpdateCamera(const GameTimer & gt)
 void GrowingPyramid::UpdateObjectCBs(const GameTimer & gt)
 {
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
-	for (auto& e : mAllRenderItems) {
-		if (e->NumFramesDirty > 0) {
-			XMMATRIX world = XMLoadFloat4x4(&e->World);
-			ObjectConstants objConstants;
-
+	ObjectConstants objConstants;
+	XMMATRIX world;
+	for (uint16_t i = 0; i < mNumPyramidFrames; ++i) {
+		if (mAllRenderItems[i]->NumFramesDirty > 0) {
+			world = XMLoadFloat4x4(&mAllRenderItems[i]->World);
 			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
-			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
-			e->NumFramesDirty--;
+			currObjectCB->CopyData(mAllRenderItems[i]->ObjCBIndex, objConstants);
+			mAllRenderItems[i]->NumFramesDirty--;
 		}
 	}
+
+	// update the skull position
+	auto baseTranslation = -0.5f*(1.0f - 0.1f*(mNumPyramidFrames - mPyramidIndex))*(10.0f);
+	world = XMMatrixScaling(0.5f, 0.5f, 0.5f)*XMMatrixTranslation(0.0f, 5.0f*(1.0f - mPyramidIndex*0.1f) + baseTranslation, 0.0f);
+	XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
+	currObjectCB->CopyData(mAllRenderItems[mNumPyramidFrames]->ObjCBIndex, objConstants);
 }
 
 void GrowingPyramid::Update(const GameTimer& gt)
@@ -344,17 +373,25 @@ void GrowingPyramid::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const 
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
 	auto objCount = (UINT)rItems.size();
-	for (auto& rItem : rItems) {
-		cmdList->IASetVertexBuffers(0, 1, &rItem->Geo->VertexBufferView());
-		cmdList->IASetIndexBuffer(&rItem->Geo->IndexBufferView());
-		cmdList->IASetPrimitiveTopology(rItem->PrimitiveType);
-		
-		UINT cbvIndex = mCurrFrameResourceIndex * objCount + rItem->ObjCBIndex;
-		auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-		cbvHandle.Offset(cbvIndex, mCbvSrvDescriptorSize);
-		cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
-		cmdList->DrawIndexedInstanced(rItem->IndexCount, 1, rItem->StartIndexLocation, rItem->BaseVertexLocation, 0);
-	}
+	auto rItem = rItems[mPyramidIndex];
+	cmdList->IASetVertexBuffers(0, 1, &rItem->Geo->VertexBufferView());
+	cmdList->IASetIndexBuffer(&rItem->Geo->IndexBufferView());
+	cmdList->IASetPrimitiveTopology(rItem->PrimitiveType);
+
+	UINT cbvIndex = mCurrFrameResourceIndex * objCount + rItem->ObjCBIndex;
+	auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+	cbvHandle.Offset(cbvIndex, mCbvSrvDescriptorSize);
+	cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+	cmdList->DrawIndexedInstanced(rItem->IndexCount, 1, rItem->StartIndexLocation, rItem->BaseVertexLocation, 0);
+
+	// draw the skull
+	rItem = rItems[mNumPyramidFrames];
+	cbvIndex = mCurrFrameResourceIndex * objCount + rItem->ObjCBIndex;
+	cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+	cbvHandle.Offset(cbvIndex, mCbvSrvDescriptorSize);
+	cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+	cmdList->DrawIndexedInstanced(rItem->IndexCount, 1, rItem->StartIndexLocation, rItem->BaseVertexLocation, 0);
+
 }
 
 void GrowingPyramid::OnResize()
@@ -406,5 +443,21 @@ void GrowingPyramid::OnKeyboardInput(const GameTimer & gt)
 	}
 	else {
 		mIsWireframe = false;
+	}
+
+	if (GetAsyncKeyState(VK_UP) & 0x8000) {
+		if (gt.TotalTime() - lastTime > 0.2f) {
+			mPyramidIndex--;
+			mPyramidIndex = MathHelper::Clamp<uint16_t>(mPyramidIndex, 0u, 9u);
+			lastTime = gt.TotalTime();
+		}
+
+	}
+	else if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+		if (gt.TotalTime() - lastTime > 0.2f) {
+			mPyramidIndex++;
+			mPyramidIndex = MathHelper::Clamp<uint16_t>(mPyramidIndex, 0u, 9u);
+			lastTime = gt.TotalTime();
+		}
 	}
 }

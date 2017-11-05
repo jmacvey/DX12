@@ -434,7 +434,8 @@ void BoxApp::BuildGeometricObject() {
 
 	// Pyramid
 	auto pyramid = geoGen.CreatePyramid(10.0f, 5.0f, 0.8f, 3);
-	geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), pyramid);
+	geo->AddObject(pyramid);
+	geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get());
 	geo.swap(mObject);
 
 	// XY Trace rotated object

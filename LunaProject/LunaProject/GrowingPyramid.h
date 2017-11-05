@@ -7,6 +7,7 @@
 #include "FrameResource.h"
 #include "RenderItem.h"
 #include "GeometricObject.h"
+#include "SkullGeometry.h"
 
 using ShapesDemo::RenderItem;
 
@@ -75,10 +76,16 @@ private:
 	
 	PassConstants mMainPassCB;
 
+	SkullGeometry mSkull;
+
 	bool mIsWireframe = false;
 	float mTheta = 1.5f*XM_PI;
 	float mPhi = 0.2f*XM_PI;
 	float mRadius = 15.0f;
+
+	uint16_t mPyramidIndex = 0;
+	uint16_t mNumPyramidFrames = 10;
+	float lastTime = 0.0f;
 };
 
 #endif
