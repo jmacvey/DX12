@@ -2,10 +2,9 @@
 #define RENDER_ITEM_H
 
 #include "stdafx.h"
+using namespace DirectX;
 
 namespace ShapesDemo {
-	using namespace DirectX;
-
 	struct RenderItem {
 		inline RenderItem() { }
 		inline RenderItem(UINT numFrameResources, D3D12_PRIMITIVE_TOPOLOGY primitiveType) : NumFramesDirty(numFrameResources), PrimitiveType(primitiveType) {}
@@ -23,6 +22,32 @@ namespace ShapesDemo {
 		UINT StartIndexLocation = 0;
 		int BaseVertexLocation = 0;
 		UINT ObjCBIndex = 0;
+	};
+}
+
+namespace LightingDemo {
+	struct RenderItem {
+		inline RenderItem() {} ;
+
+		XMFLOAT4X4 World = MathHelper::Identity4x4();
+
+		int NumFramesDirty = 3;
+
+		UINT ObjCBIndex = -1;
+
+		Material* Mat = nullptr;
+		MeshGeometry* Geo = nullptr;
+
+		D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		
+		UINT IndexCount = 0;
+		UINT StartIndexLocation = 0;
+		int BaseVertexLocation = 0;
+	};
+
+	enum class RenderLayer : int {
+		Opaque = 0,
+		Count
 	};
 }
 

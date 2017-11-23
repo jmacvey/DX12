@@ -77,6 +77,11 @@ void GeometricObject::SetInputLayout(const std::vector<D3D12_INPUT_ELEMENT_DESC>
 	mInputLayout = inputLayout;
 }
 
+std::vector<uint16_t>& GeometricObject::GetIndices()
+{
+	return mIndices;
+}
+
 MeshGeometry* GeometricObject::GetGeometry() {
 	return mGeo.get();
 }

@@ -20,6 +20,7 @@ bool BoxApp::Initialize() {
 	BuildConstantBuffers();
 	BuildRootSignature();
 	BuildShaders();
+
 	// BuildBoxIndices();
 	// BuildBoxGeometry();
 	// BuildBoxPositions();
@@ -67,12 +68,12 @@ void BoxApp::OnMouseMove(WPARAM btnState, int x, int y) {
 		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
 	}
 	else if ((btnState & MK_RBUTTON) != 0) {
-		float dx = 0.05f*static_cast<float>(x - mLastMousePos.x);
-		float dy = 0.05f*static_cast<float>(y - mLastMousePos.y);
+		float dx = 0.5f*static_cast<float>(x - mLastMousePos.x);
+		float dy = 0.5f*static_cast<float>(y - mLastMousePos.y);
 
 		// update camera radius based on input
 		mRadius += dx - dy;
-		mRadius = MathHelper::Clamp(mRadius, 3.0f, 150.0f);
+		mRadius = MathHelper::Clamp(mRadius, 3.0f, 5000.0f);
 	}
 	mLastMousePos.x = x;
 	mLastMousePos.y = y;
@@ -82,7 +83,7 @@ void BoxApp::OnResize() {
 	D3DApp::OnResize();
 
 	// the window resized, so update the aspect ratio and recompute the projection matrix
-	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
+	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 5000.0f);
 	XMStoreFloat4x4(&mProj, P);
 }
 
@@ -102,7 +103,7 @@ void BoxApp::Update(const GameTimer& gt) {
 	XMMATRIX proj = XMLoadFloat4x4(&mProj);
 	XMMATRIX viewProj = view*proj;
 	auto time = gt.TotalTime();
-	ObjectConstants objConstants[2] = { {}, {} };
+	ObjectConstants objConstants[5] = { {}, {}, { }, {}, {} };
 	auto updateCoordinates = [&](const XMFLOAT4X4& worldTransform, UINT elementIndex) {
 		XMMATRIX world = XMLoadFloat4x4(&worldTransform);
 		XMMATRIX worldViewProj = world*viewProj;
@@ -112,9 +113,15 @@ void BoxApp::Update(const GameTimer& gt) {
 		mObjectCB->CopyData(elementIndex, objConstants[elementIndex]);
 	};
 
-	updateCoordinates(mWorldPyramid, 0);
-	// updateCoordinates(mWorldBox, 0);
-	// updateCoordinates(mWorldPyramid, 1);
+	// XMFLOAT4X4 world;
+	// XMStoreFloat4x4(&world, XMMatrixScaling(1.0f, 2.0f, 1.0f)*XMMatrixTranslation(-1.0f, 0.0f, 0.0f));
+	updateCoordinates(MathHelper::Identity4x4(), 0);
+	// updateCoordinates(MathHelper::Identity4x4(), 1);
+	// updateCoordinates(MathHelper::Identity4x4(), 2);
+	// XMStoreFloat4x4(&world, XMMatrixTranslation(+4.0f, 0.0f, 0.0f));
+	// updateCoordinates(world, 3);
+	// XMStoreFloat4x4(&world, XMMatrixTranslation(+1.0f, 0.0f, 0.0f));
+	// updateCoordinates(world, 1);
 }
 
 void BoxApp::Draw(const GameTimer& gt) {
@@ -134,7 +141,7 @@ void BoxApp::Draw(const GameTimer& gt) {
 
 	// clear back buffer and depth buffer
 	mCommandList->ClearRenderTargetView(CurrentBackBufferView(),
-		Colors::LightSteelBlue, 0, nullptr);
+		Colors::White, 0, nullptr);
 	mCommandList->ClearDepthStencilView(DepthStencilView(),
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
 		1.0f, 0, 0, nullptr);
@@ -151,36 +158,20 @@ void BoxApp::Draw(const GameTimer& gt) {
 	mCommandList->IASetIndexBuffer(&(mObject->GetGeometry())->IndexBufferView());
 
 	mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-	
-	mCommandList->DrawIndexedInstanced(
-		mObject->GetGeometry()->DrawArgs[GeometricObject::SubmeshName].IndexCount,
-		1,
-		mObject->GetGeometry()->DrawArgs[GeometricObject::SubmeshName].StartIndexLocation,
-		mObject->GetGeometry()->DrawArgs[GeometricObject::SubmeshName].BaseVertexLocation,
-		0
-	);
 
-	//auto boxSubmesh = mGeo->DrawArgs[Box::GeometryName];
-	//auto pyramidSubmesh = mGeo->DrawArgs[Pyramid::GeometryName];
-	
-	//mCommandList->DrawIndexedInstanced(
-	//	boxSubmesh.IndexCount,
-	//	1, boxSubmesh.StartIndexLocation,
-	//	boxSubmesh.BaseVertexLocation, 0
-	//);
-
-	//// Offset to the CBV in the descriptor heap for this object
-	//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-	//cbvHandle.Offset(1, mCbvSrvDescriptorSize);
-
-	//mCommandList->SetGraphicsRootDescriptorTable(0, cbvHandle);
-
-	//mCommandList->DrawIndexedInstanced(
-	//	pyramidSubmesh.IndexCount,
-	//	1, pyramidSubmesh.StartIndexLocation,
-	//	pyramidSubmesh.BaseVertexLocation, 0
-	//);
+	for (uint16_t i = 0; i < 5; ++i) {
+		auto submesh = mObject->GetSubmesh(i);
+		auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+		cbvHandle.Offset(i, mCbvSrvDescriptorSize);
+		mCommandList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+		mCommandList->DrawIndexedInstanced(
+			submesh.IndexCount,
+			1,
+			submesh.StartIndexLocation,
+			submesh.BaseVertexLocation,
+			0
+		);
+	}
 
 	// indicate a state transition 
 	mCommandList->ResourceBarrier(1,
@@ -202,7 +193,7 @@ void BoxApp::Draw(const GameTimer& gt) {
 void BoxApp::BuildDescriptorHeaps() {
 
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
-	cbvHeapDesc.NumDescriptors = 2;
+	cbvHeapDesc.NumDescriptors = 5;
 	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	cbvHeapDesc.NodeMask = 0;
@@ -213,7 +204,7 @@ void BoxApp::BuildDescriptorHeaps() {
 void BoxApp::BuildConstantBuffers() {
 	// wraps the upload buffer in a unique pointer and forwards constants to UploadBuffer constructor
 	// d3dDevice pointer, # elements in constant buffer, isConstantBuffer = true
-	UINT bufferSize = 1;
+	UINT bufferSize = 5;
 	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(md3dDevice.Get(), bufferSize, true);
 
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
@@ -229,8 +220,6 @@ void BoxApp::BuildConstantBuffers() {
 		handle.Offset(i, mCbvSrvDescriptorSize);
 		md3dDevice->CreateConstantBufferView(&cbvDesc, handle);
 	}
-	
-
 }
 
 void BoxApp::BuildRootSignature() {
@@ -368,7 +357,7 @@ void BoxApp::BuildBoxColors() {
 	};
 
 	const UINT vbByteSize = (UINT)colorVertices.size() * sizeof(VColorData);
-	
+
 	D3DCreateBlob(vbByteSize, &mBoxColorData->VertexBufferCPU);
 	CopyMemory(mBoxColorData->VertexBufferCPU->GetBufferPointer(), colorVertices.data(), vbByteSize);
 
@@ -390,7 +379,7 @@ void BoxApp::BuildBoxColors() {
 	submesh.BaseVertexLocation = 0;
 	submesh.IndexCount = colorVertices.size();
 	submesh.StartIndexLocation = 0;
-	
+
 	mBoxColorData->DrawArgs["BoxColors"] = submesh;
 }
 
@@ -405,27 +394,48 @@ void BoxApp::BuildGeometricObject() {
 	geo->SetInputLayout(mInputLayout);
 
 	// Ellipsoid
-	// auto ellipsoid = geoGen.CreateEllipsoid(1.0f, 1.0f, 2.0f, 20, 10);
-	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), ellipsoid);
-	
+	// auto ellipsoid = geoGen.CreateEllipsoid(1.0f, 1.0f, 1.0f, 20, 10);
+	// geo->AddObject(ellipsoid);
+
 	// Sphere
 	// auto sphere = geoGen.CreateSphere(1.0f, 20, 10);
-	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), sphere);
+	// geo->AddObject(sphere);
 
 	// Geosphere
-	// auto geosphere = geoGen.CreateGeosphere(1.0f, 3);
-	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), geosphere);
-
+	//geo->AddObject(geoGen.CreateGeosphere(2.0f, 0));
+	//geo->AddObject(geoGen.CreateGeosphere(2.0f, 0));
+	// geo->AddObject(geoGen.CreateGeosphere(1.0f, 2));
+	//geo->AddObject(geoGen.CreateGeosphere(2.0f, 2));
+	// geo->AddObject(geoGen.CreateEllipsoid(1.0f, 1.0f, 2.0f, 15, 15));
 	// Hyperboloid
-	// auto hyperboloid = geoGen.CreateHyperboloidOneSheet(10.0f, 2.0f, 2.0f, 2.0f, 20, 20);
-	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), hyperboloid);
+	/*auto hyperboloid = geoGen.CreateHyperboloidOneSheet(10.0f, 2.0f, 2.0f, 2.0f, 20, 20);
+	geo->AddObject(hyperboloid);
+	geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get());*/
 
 	// Grid
-	// auto grid = geoGen.CreateGrid(160.0f, 160.0f, 50, 50);
+	//auto landNWaves = [](std::vector<GeometryGenerator::Vertex>& vertices) {
+	//	for (auto& v : vertices) {
+	//		v.Position.y = 0.3f*((v.Position.z*sinf(0.1f*v.Position.x)) + v.Position.x*cosf(0.1f*v.Position.z));
+	//	}
+	//};
+	//auto grid = geoGen.CreateGrid(180.0f, 200.0f, 50, 50);
+	//landNWaves(grid.Vertices);
+	//geo->AddObject(grid);
+
+	//auto grid2 = geoGen.CreateGrid(10.0f, 10.0f, 50, 50);
+	//for (auto& v : grid2.Vertices) {
+	//	auto x = v.Position.x;
+	//	auto z = v.Position.z;
+	//	// v.Position.y = sinf(v.Position.x)*sinf(v.Position.z) / max(v.Position.x*v.Position.z, 0.1);
+	//	// v.Position.y = sinf(v.Position.x) + sinf(v.Position.z);
+	//	v.Position.y = (float)(pow(x, 3) + 3 * pow(z, 2))*exp(-pow(x, 2) - pow(z, 2));
+	//}
+	//geo->AddObject(grid2);
 	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), grid);
 
 	// Cylinder
-	// auto cylinder = geoGen.CreateCylinder(1.0f, 2.0f, 3.0f, 20, 10);
+	// geo->AddObject(geoGen.CreateCylinder(1.0f, 1.0f, 3.0f, 20, 10));
+	// geo->AddObject(geoGen.CreateCylinder(1.0f, 2.0f, 3.0f, 20, 10));
 	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), cylinder);
 
 	// Box
@@ -433,28 +443,30 @@ void BoxApp::BuildGeometricObject() {
 	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), box);
 
 	// Pyramid
-	auto pyramid = geoGen.CreatePyramid(10.0f, 5.0f, 0.8f, 3);
-	geo->AddObject(pyramid);
-	geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get());
-	geo.swap(mObject);
+	// auto pyramid = geoGen.CreatePyramid(10.0f, 5.0f, 0.7f, 3);
+	// geo->AddObject(pyramid);
+	//geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get());
+	//geo.swap(mObject);
 
 	// XY Trace rotated object
-	// std::vector<XMFLOAT2> points;
-	// cone 
-	// float m = 1.5f;
-	// for (uint16_t i = 1; i < 10; ++i) {
-		// points.emplace_back(XMFLOAT2(static_cast<float>(i), m*i + 1.0f));
-	// }
+	 std::vector<XMFLOAT2> points;
+	 // cone 
+	 float m = 1.5f; // slope
+	 for (uint16_t i = 1; i < 20; ++i) {
+		points.emplace_back(XMFLOAT2(static_cast<float>(i), m*i - 5.0f));
+	 }
+	 //geo->AddObject(geoGen.CreateObjectFromXYTrace(points, 20, XM_2PI));
 
 	// paraboloid
-	// for (uint16_t i = 0; i < 10; ++i) {
-	//	 points.emplace_back(XMFLOAT2(static_cast<float>(i), 0.25f*(i*i - 10.0f)));
-	// }
-	// auto obj = geoGen.CreateObjectFromXYTrace(points, 10, XM_2PI);
+	 for (uint16_t i = 0; i < 12; ++i) {
+		 points.emplace_back(XMFLOAT2(static_cast<float>(i), 0.1f*(i*i) - 12.0f));
+	 }
+	 auto obj = geoGen.CreateObjectFromXYTrace(points, 10, XM_PI);
+	 geo->AddObject(obj);
+
 	// geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get(), obj);
-	// geo.swap(mObject);
-
-
+	geo->BuildGeometry(md3dDevice.Get(), mCommandList.Get());
+	geo.swap(mObject);
 }
 
 void BoxApp::BuildPyramidGeometry() {
@@ -554,6 +566,6 @@ void BoxApp::BuildPSO() {
 }
 
 void BoxApp::SetScissorRects() {
-	mScissorRect = { mClientWidth / 4, mClientHeight / 4, mClientWidth*3/4, mClientHeight*3/4 };
+	mScissorRect = { mClientWidth / 4, mClientHeight / 4, mClientWidth * 3 / 4, mClientHeight * 3 / 4 };
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
 }

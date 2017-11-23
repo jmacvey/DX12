@@ -9,7 +9,7 @@
 #include "GeometricObject.h"
 #include "SkullGeometry.h"
 
-using ShapesDemo::RenderItem;
+using namespace ShapesDemo;
 
 class GrowingPyramid : public D3DApp {
 

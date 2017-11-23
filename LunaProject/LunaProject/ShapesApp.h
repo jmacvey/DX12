@@ -5,8 +5,9 @@
 #include "RenderItem.h"
 #include "FrameResource.h"
 #include "GeometryGenerator.h"
+#include "SkullGeometry.h"
 
-using namespace ShapesDemo;
+using namespace LightingDemo;
 
 class ShapesApp : public D3DApp {
 
@@ -31,16 +32,21 @@ private:
 	void UpdateCamera(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
+	void AddThreePointLighting();
+	void AddPointLighting();
+	void AddSpotLighting();
+	void UpdateMaterialCBs(const GameTimer& gt);
 
 	void BuildDescriptorHeaps();
 	void BuildConstantBufferViews();
 	void BuildRootSignature();
 	void BuildShadersAndInputLayout();
 	void BuildShapeGeometry();
+	void BuildMaterials();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildRenderItems();
-	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<ShapesDemo::RenderItem*>& rItems);
+	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& rItems);
 
 private:
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
@@ -54,13 +60,14 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
 	std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
+	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 
 	// list of all render items
-	std::vector<std::unique_ptr<ShapesDemo::RenderItem>> mAllRitems;
+	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 	// render items deviced by PSO
-	std::vector<ShapesDemo::RenderItem*> mOpaqueRitems;
+	std::vector<RenderItem*> mOpaqueRitems;
 	
 	PassConstants mMainPassCB;
 	UINT mMainPassCbvOffset = 0;
@@ -75,8 +82,10 @@ private:
 	float mTheta = 1.5f*XM_PI;
 	float mPhi = 0.2f*XM_PI;
 	float mRadius = 15.0f;
+	std::vector<XMFLOAT3> mSphereLocations;
 
 	POINT mLastMousePos;
+	SkullGeometry skull;
 };
 
 #endif

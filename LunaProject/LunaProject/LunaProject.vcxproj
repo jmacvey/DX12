@@ -178,6 +178,8 @@
     <ClInclude Include="GrowingPyramid.h" />
     <ClInclude Include="InitDirect3D.h" />
     <ClInclude Include="LandAndWaves.h" />
+    <ClInclude Include="LitColumns.h" />
+    <ClInclude Include="LitWaves.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="Pyramid.h" />
     <ClInclude Include="FrameResource.h" />
@@ -203,10 +205,12 @@
     <ClCompile Include="GrowingPyramid.cpp" />
     <ClCompile Include="InitDirect3D.cpp" />
     <ClCompile Include="LandAndWaves.cpp" />
+    <ClCompile Include="LitColumns.cpp" />
+    <ClCompile Include="LitWaves.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="Pyramid.cpp" />
-    <ClCompile Include="PyramidDriver.cpp" />
     <ClCompile Include="ShapesApp.cpp" />
+    <ClCompile Include="ShapesDriver.cpp" />
     <ClCompile Include="SkullGeometry.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

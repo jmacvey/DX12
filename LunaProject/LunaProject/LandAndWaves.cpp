@@ -148,8 +148,8 @@ void LandNWaves::OnMouseMove(WPARAM btnState, int x, int y) {
 		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
 	}
 	else if ((btnState & MK_RBUTTON) != 0) {
-		float dx = 0.2f*static_cast<float>(x - mLastMousePos.x);
-		float dy = 0.2f*static_cast<float>(y - mLastMousePos.y);
+		float dx = 10.0f*static_cast<float>(x - mLastMousePos.x);
+		float dy = 10.0f*static_cast<float>(y - mLastMousePos.y);
 
 		mRadius += dx - dy;
 		mRadius = MathHelper::Clamp(mRadius, 5.0f, 1000.0f);

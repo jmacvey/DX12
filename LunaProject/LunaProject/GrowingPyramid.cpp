@@ -333,7 +333,7 @@ void GrowingPyramid::Draw(const GameTimer& gt)
 	));
 
 	mCommandList->ClearRenderTargetView(CurrentBackBufferView(),
-		mIsWireframe ? Colors::White : Colors::LightSteelBlue, 0, nullptr);
+		mIsWireframe ? Colors::White : Colors::White, 0, nullptr);
 	mCommandList->ClearDepthStencilView(DepthStencilView(),
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
 		1.0f,
@@ -368,10 +368,9 @@ void GrowingPyramid::Draw(const GameTimer& gt)
 	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 }
 
-void GrowingPyramid::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const std::vector<RenderItem*>& rItems)
+void GrowingPyramid::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& rItems)
 {
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
-	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
 	auto objCount = (UINT)rItems.size();
 	auto rItem = rItems[mPyramidIndex];
 	cmdList->IASetVertexBuffers(0, 1, &rItem->Geo->VertexBufferView());
@@ -391,7 +390,6 @@ void GrowingPyramid::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const 
 	cbvHandle.Offset(cbvIndex, mCbvSrvDescriptorSize);
 	cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
 	cmdList->DrawIndexedInstanced(rItem->IndexCount, 1, rItem->StartIndexLocation, rItem->BaseVertexLocation, 0);
-
 }
 
 void GrowingPyramid::OnResize()

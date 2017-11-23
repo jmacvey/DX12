@@ -204,6 +204,12 @@
     <ClInclude Include="SkullGeometry.h">
       <Filter>Header Files\Geometry</Filter>
     </ClInclude>
+    <ClInclude Include="LitWaves.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
+    <ClInclude Include="LitColumns.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -257,11 +263,17 @@
     <ClCompile Include="ShapesApp.cpp">
       <Filter>Source Files\Apps</Filter>
     </ClCompile>
-    <ClCompile Include="PyramidDriver.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SkullGeometry.cpp">
       <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="LitWaves.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="LitColumns.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapesDriver.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

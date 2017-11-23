@@ -8,7 +8,7 @@
 
 using namespace DirectX;
 using namespace DirectX::PackedVector;
-using ShapesDemo::RenderItem;
+using namespace ShapesDemo;
 
 enum class RenderLayer : int {
 	Opaque = 0,

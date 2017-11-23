@@ -454,7 +454,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 			float x = -halfWidth + j*dx;
 
 			meshData.Vertices[i*n + j].Position = XMFLOAT3(x, 0.0f, z);
-			meshData.Vertices[i*n + j].Normal = XMFLOAT3(0.0f, 1.0f, 0.0f);
+		    meshData.Vertices[i*n + j].Normal = XMFLOAT3(0.0f, 1.0f, 0.0f);
 			meshData.Vertices[i*n + j].TangentU = XMFLOAT3(1.0f, 0.0f, 0.0f);
 
 			// Stretch texture over grid.
@@ -568,7 +568,7 @@ void GeometryGenerator::BuildCylinderBottomCap(float bottomRadius, float topRadi
 	const XMFLOAT3 tangent = XMFLOAT3(-1.0f, 0.0f, 0.0f);
 	const float y = -0.5f * height;
 	const uint32 baseIndex = meshData.Vertices.size();
-	for (uint32 i = 0; i < sliceCount; ++i) {
+	for (uint32 i = 0; i <= sliceCount; ++i) {
 		float x = bottomRadius*cosf(dTheta * i);
 		float z = bottomRadius*sinf(dTheta * i);
 		float u = x / height - 0.5f;
@@ -589,7 +589,7 @@ void GeometryGenerator::BuildCylinderBottomCap(float bottomRadius, float topRadi
 		-0.5f, -0.5f
 	);
 
-	for (uint32 i = 0; i < sliceCount; ++i) {
+	for (uint32 i = 0; i <= sliceCount; ++i) {
 		meshData.Indices32.emplace_back(centerIndex);
 		meshData.Indices32.emplace_back(baseIndex + i);
 		meshData.Indices32.emplace_back(baseIndex + i + 1);
@@ -603,7 +603,7 @@ void GeometryGenerator::BuildCylinderTopCap(float bottomRadius, float topRadius,
 	const XMFLOAT3 tangent = XMFLOAT3(1.0f, 0.0f, 0.0f);
 	const float y = 0.5f * height;
 	const uint32 baseIndex = meshData.Vertices.size();
-	for (uint32 i = 0; i < sliceCount; ++i) {
+	for (uint32 i = 0; i <= sliceCount; ++i) {
 		// calculate x, z
 		float x = topRadius*cosf(dTheta*i);
 		float z = topRadius*sinf(dTheta*i);
@@ -626,7 +626,7 @@ void GeometryGenerator::BuildCylinderTopCap(float bottomRadius, float topRadius,
 	);
 
 	// add the indices
-	for (uint32 i = 0; i < sliceCount; ++i) {
+	for (uint32 i = 0; i <= sliceCount; ++i) {
 		meshData.Indices32.emplace_back(centerIndex);
 		meshData.Indices32.emplace_back(baseIndex + i + 1);
 		meshData.Indices32.emplace_back(baseIndex + i);
@@ -728,9 +728,7 @@ void GeometryGenerator::BuildHyperboloidCap(float height, float a, float b, floa
 GeometryGenerator::MeshData GeometryGenerator::CreateEllipsoid(float a, float b, float c, uint32 sliceCount, uint32 stackCount) {
 	MeshData ellipsoid;
 	
-	assert(a > 0);
-	assert(b > 0);
-	assert(c > 0);
+	assert(a > 0 && b > 0 && c > 0 && sliceCount > 0 && stackCount > 0);
 
 
 	const uint32 ringCount = stackCount + 1;

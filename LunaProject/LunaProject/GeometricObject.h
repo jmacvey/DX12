@@ -3,9 +3,21 @@
 
 #include "d3dUtil.h"
 #include "GeometryGenerator.h"
+#include "FrameResource.h"
+#include <functional>
 
+// fwd declarations
 using Microsoft::WRL::ComPtr;
+
+class GeometricObject;
+template<typename vertexType>
+std::vector<vertexType> getVertices(GeometricObject*, std::function<vertexType(const GeometryGenerator::Vertex&)>);
+
 class GeometricObject {
+
+	template<typename vertexType>
+	friend std::vector<vertexType> getVertices(GeometricObject*, std::function<vertexType(const GeometryGenerator::Vertex&)>);
+
 public:
 	static const std::string SubmeshName;
 	GeometricObject() = delete;
@@ -23,10 +35,11 @@ public:
 	std::vector<D3D12_INPUT_ELEMENT_DESC> GetInputLayout() const;
 	void SetInputLayout(const std::vector<D3D12_INPUT_ELEMENT_DESC>& inputLayout);
 
+	std::vector<uint16_t>& GetIndices();
+
 	MeshGeometry* GetGeometry();
 
 	SubmeshGeometry GetSubmesh(uint32_t submeshIndex) const;
-
 private:
 
 	void ResetBufferSizes();
@@ -37,6 +50,18 @@ private:
 	uint32_t mSize = 0;
 	std::vector<GeometryGenerator::Vertex> mVertices;
 	std::vector<uint16_t> mIndices;
+
+};
+
+template<typename vertexType>
+std::vector<vertexType> getVertices(GeometricObject* geo, std::function<vertexType(const GeometryGenerator::Vertex&)> convertVertex) {
+	std::vector<vertexType> toReturn;
+	auto convertAndPush = [&](const GeometryGenerator::Vertex& toConvert) {
+		vertexType v = convertVertex(toConvert);
+		toReturn.emplace_back(std::move(v));
+	};
+	std::for_each(geo->mVertices.begin(), geo->mVertices.end(), convertAndPush);
+	return toReturn;
 };
 
 #endif
