@@ -102,7 +102,7 @@ void ShapesApp::Draw(const GameTimer& gt) {
 	
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	// pass cbvs are in descriptor table index 1
+	// pass cbvs are in descriptor table index 2
 	int passCbvIndex = mMainPassCbvOffset + mCurrFrameResourceIndex;
 	auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
 	passCbvHandle.Offset(passCbvIndex, mCbvSrvDescriptorSize);
@@ -224,16 +224,6 @@ void ShapesApp::UpdateMainPassCB(const GameTimer& gt) {
 	mMainPassCB.FarZ = 1500.0f;
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
-
-	struct Light
-	{
-		DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
-		float FalloffStart = 1.0f;                          // point/spot light only
-		DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f };// directional/spot light only
-		float FalloffEnd = 10.0f;                           // point/spot light only
-		DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };  // point/spot light only
-		float SpotPower = 64.0f;                            // spot light only
-	};
 
 	AddThreePointLighting();
 	// AddPointLighting();

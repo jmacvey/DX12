@@ -450,11 +450,11 @@ void BoxApp::BuildGeometricObject() {
 
 	// XY Trace rotated object
 	 std::vector<XMFLOAT2> points;
-	 // cone 
-	 float m = 1.5f; // slope
-	 for (uint16_t i = 1; i < 20; ++i) {
-		points.emplace_back(XMFLOAT2(static_cast<float>(i), m*i - 5.0f));
-	 }
+	 //// cone 
+	 //float m = 1.5f; // slope
+	 //for (uint16_t i = 1; i < 20; ++i) {
+		//points.emplace_back(XMFLOAT2(static_cast<float>(i), m*i - 5.0f));
+	 //}
 	 //geo->AddObject(geoGen.CreateObjectFromXYTrace(points, 20, XM_2PI));
 
 	// paraboloid

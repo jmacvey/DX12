@@ -101,11 +101,50 @@ namespace LightingDemo {
 		std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
 		std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
 		std::unique_ptr<UploadBuffer<MaterialConstants>> MaterialCB = nullptr;
-		
+
 		std::unique_ptr<UploadBuffer<Vertex>> WavesVB = nullptr;
 		// Fence marks commands up to the point.  Checks if resources are still in use by the GPU
 		UINT64 Fence = 0;
 	};
+}
+
+namespace CrateDemo {
+
+	using LightingDemo::PassConstants;
+	struct ObjectConstants {
+		DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
+	};
+	struct Vertex {
+		DirectX::XMFLOAT3 Pos;
+		DirectX::XMFLOAT3 Normal;
+		DirectX::XMFLOAT2 TexC;
+	};
+
+
+	struct FrameResource {
+	public:
+		FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount);
+		FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT materialCount);
+		FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT materialCount, UINT waveVertCount);
+		FrameResource(const FrameResource& rhs) = delete;
+		FrameResource& operator=(const FrameResource& rhs) = delete;
+		~FrameResource();
+
+		// Can't reset allocator until GPU is done processing, so each frame needs separate allocator
+		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CmdListAlloc;
+
+		// Cannot update cbufer until GPU is done processing, so each frame gets buffer
+		std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
+		std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
+		std::unique_ptr<UploadBuffer<MaterialConstants>> MaterialCB = nullptr;
+
+		std::unique_ptr<UploadBuffer<Vertex>> WavesVB = nullptr;
+		// Fence marks commands up to the point.  Checks if resources are still in use by the GPU
+		UINT64 Fence = 0;
+	};
+
+
 }
 
 

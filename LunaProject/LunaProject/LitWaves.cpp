@@ -25,6 +25,12 @@ bool LitWavesApp::Initialize()
 
 	mWaves = std::make_unique<Waves>(128, 128, 1.0f, 0.03f, 4.0f, 0.2f);
 
+	// handles building textures resources, descriptor heap, and descriptors
+	BuildTextures();
+	BuildDescriptorHeaps();
+	BuildTextureDescriptors();
+
+	// handles everything else
 	BuildRootSignature();
 	BuildShadersAndInputLayout();
 	BuildLandGeometry();
@@ -53,6 +59,7 @@ void LitWavesApp::Update(const GameTimer & gt)
 {
 	OnKeyboardInput(gt);
 	UpdateCamera(gt);
+	AnimateMaterials(gt);
 
 	// Cycle through the circular frame resource array.
 	mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % mNumFrameResources;
@@ -68,11 +75,10 @@ void LitWavesApp::Update(const GameTimer & gt)
 		CloseHandle(eventHandle);
 	}
 
+	UpdateWaves(gt);
 	UpdateObjectCBs(gt);
 	UpdateMaterialCBs(gt);
 	UpdateMainPassCB(gt);
-	UpdateWaves(gt);
-
 }
 
 void LitWavesApp::Draw(const GameTimer & gt)
@@ -100,6 +106,9 @@ void LitWavesApp::Draw(const GameTimer & gt)
 
 	// Specify the buffers we are going to render to.
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+
+	ID3D12DescriptorHeap* descriptorHeaps[1] = { mSrvHeap.Get() };
+	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
@@ -222,10 +231,11 @@ void LitWavesApp::UpdateObjectCBs(const GameTimer& gt)
 
 		if (rItem->NumFramesDirty > 0) {
 			XMMATRIX world = XMLoadFloat4x4(&rItem->World);
+			XMMATRIX texTransform = XMLoadFloat4x4(&rItem->TexTransform);
 
 			ObjectConstants objConstants;
 			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
-
+			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
 			currObjectCB->CopyData(rItem->ObjCBIndex, objConstants);
 			rItem->NumFramesDirty--;
 		}
@@ -238,11 +248,12 @@ void LitWavesApp::UpdateMaterialCBs(const GameTimer & gt)
 	for (auto& material : mMaterials) {
 		Material* mat = material.second.get();
 		if (mat->NumFramesDirty > 0) {
+			XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
 			MaterialConstants matConstants;
 			matConstants.DiffuseAlbedo = mat->DiffuseAlbedo;
 			matConstants.FresnelR0 = mat->FresnelR0;
 			matConstants.Roughness = mat->Roughness;
-
+			XMStoreFloat4x4(&matConstants.MatTransform, XMMatrixTranspose(matTransform));
 			currMaterialCB->CopyData(mat->MatCBIndex, matConstants);
 			mat->NumFramesDirty--;
 		}
@@ -286,6 +297,7 @@ void LitWavesApp::UpdateMainPassCB(const GameTimer & gt)
 void LitWavesApp::UpdateWaves(const GameTimer & gt)
 {
 	static float t_base = 0.0f;
+
 	if ((mTimer.TotalTime() - t_base) >= 0.25f)
 	{
 		t_base += 0.25f;
@@ -309,6 +321,8 @@ void LitWavesApp::UpdateWaves(const GameTimer & gt)
 
 		v.Pos = mWaves->Position(i);
 		v.Normal = mWaves->Normal(i);
+		v.TexC.x = 0.5f + v.Pos.x / mWaves->Width();
+		v.TexC.y = 0.5f - v.Pos.z / mWaves->Depth();
 
 		currWavesVB->CopyData(i, v);
 	}
@@ -317,15 +331,105 @@ void LitWavesApp::UpdateWaves(const GameTimer & gt)
 	mWavesRItem->Geo->VertexBufferGPU = currWavesVB->Resource();
 }
 
+void LitWavesApp::AnimateMaterials(const GameTimer & gt)
+{
+	auto waterMat = mMaterials["water"].get();
+	float& tu = waterMat->MatTransform(3, 0);
+	float& tv = waterMat->MatTransform(3, 1);
+
+	tu += 0.1f * gt.DeltaTime();
+	tv += 0.02f * gt.DeltaTime();
+	if (tu >= 1.0f)
+		tu -= 1.0f;
+
+	if (tv >= 1.0f)
+		tv -= 1.0f;
+
+	waterMat->MatTransform(3, 0) = tu;
+	waterMat->MatTransform(3, 1) = tv;
+
+	waterMat->NumFramesDirty = mNumFrameResources;
+}
+
+void LitWavesApp::BuildTextures()
+{
+	auto createTex = [&](const std::string& name, const std::wstring& fileName) {
+		auto tex = std::make_unique<Texture>();
+		tex->Name = name;
+		tex->Filename = fileName;
+		ThrowIfFailed(CreateDDSTextureFromFile12(
+			md3dDevice.Get(),
+			mCommandList.Get(),
+			tex->Filename.c_str(),
+			tex->Resource,
+			tex->UploadHeap));
+		mTextures[tex->Name] = std::move(tex);
+	};
+
+	createTex("water", L"Textures//water1.dds");
+	createTex("grass", L"Textures//grass.dds");
+}
+
+void LitWavesApp::BuildDescriptorHeaps()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC desc;
+	desc.NumDescriptors = 2;
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	desc.NodeMask = 0;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(mSrvHeap.GetAddressOf())));
+}
+
+void LitWavesApp::BuildTextureDescriptors()
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+	desc.Texture2D.MostDetailedMip = 0;
+	desc.Texture2D.ResourceMinLODClamp = 0.0f;
+	desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mSrvHeap->GetCPUDescriptorHandleForHeapStart());
+	auto buildTextureDescriptor = [&](const std::unique_ptr<Texture>& tex) {
+		auto resource = tex->Resource;
+		desc.Format = resource->GetDesc().Format;
+		desc.Texture2D.MipLevels = resource->GetDesc().MipLevels;
+		md3dDevice->CreateShaderResourceView(resource.Get(), &desc, handle);
+		handle.Offset(1, mCbvSrvDescriptorSize);
+	};
+
+	buildTextureDescriptor(mTextures["grass"]);
+	buildTextureDescriptor(mTextures["water"]);
+}
+
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> LitWavesApp::GetStaticSamplers()
+{
+	const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
+		0,
+		D3D12_FILTER_ANISOTROPIC,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		0.0f,
+		8
+	);
+
+	return { anisotropicWrap };
+}
+
 void LitWavesApp::BuildRootSignature()
 {
-	CD3DX12_ROOT_PARAMETER slotRootParameter[3];
+	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
 
 
 	slotRootParameter[0].InitAsConstantBufferView(0); // object constants
 	slotRootParameter[1].InitAsConstantBufferView(1); // material constnats
 	slotRootParameter[2].InitAsConstantBufferView(2); // pass constants
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, slotRootParameter, 0, nullptr,
+
+	auto srvTable0 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // textures
+	slotRootParameter[3].InitAsDescriptorTable(1, &srvTable0, D3D12_SHADER_VISIBILITY_PIXEL);
+
+	auto staticSamplers = GetStaticSamplers();
+
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
@@ -346,13 +450,14 @@ void LitWavesApp::BuildRootSignature()
 
 void LitWavesApp::BuildShadersAndInputLayout()
 {
-	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_0");
-	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "PS", "ps_5_0");
+	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", nullptr, "VS", "vs_5_0");
+	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", nullptr, "PS", "ps_5_0");
 
 	mInputLayout =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 }
 
@@ -374,6 +479,7 @@ void LitWavesApp::BuildLandGeometry()
 		vertices[i].Pos = p;
 		vertices[i].Pos.y = GetHillsHeight(p.x, p.z);
 		vertices[i].Normal = GetHillsNormal(p.x, p.z);
+		vertices[i].TexC = grid.Vertices[i].TexC;
 	}
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
@@ -487,7 +593,9 @@ void LitWavesApp::BuildPSOs()
 		reinterpret_cast<BYTE*>(mShaders["opaquePS"]->GetBufferPointer()),
 		mShaders["opaquePS"]->GetBufferSize()
 	};
-	opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	auto rasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	// rasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	opaquePsoDesc.RasterizerState = rasterizerState;
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.SampleMask = UINT_MAX;
@@ -514,16 +622,18 @@ void LitWavesApp::BuildMaterials()
 	auto grass = std::make_unique<Material>(mNumFrameResources);
 	grass->Name = "grass";
 	grass->MatCBIndex = 0;
-	grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
+	grass->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-	grass->Roughness = 0.125f;
+	grass->Roughness = 0.7f;
+	grass->DiffuseSrvHeapIndex = 0;
 
 	auto water = std::make_unique<Material>(mNumFrameResources);
 	water->Name = "water";
 	water->MatCBIndex = 1;
-	water->DiffuseAlbedo = XMFLOAT4(0.0f, 0.2f, 0.6f, 1.0f);
+	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	water->Roughness = 0.0f;
+	water->DiffuseSrvHeapIndex = 1;
 
 	mMaterials["grass"] = std::move(grass);
 	mMaterials["water"] = std::move(water);
@@ -532,6 +642,7 @@ void LitWavesApp::BuildMaterials()
 void LitWavesApp::BuildRenderItems()
 {
 	auto wavesRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&wavesRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
 	wavesRitem->World = MathHelper::Identity4x4();
 	wavesRitem->ObjCBIndex = 0;
 	wavesRitem->Mat = mMaterials["water"].get();
@@ -540,12 +651,12 @@ void LitWavesApp::BuildRenderItems()
 	wavesRitem->IndexCount = wavesRitem->Geo->DrawArgs["grid"].IndexCount;
 	wavesRitem->StartIndexLocation = wavesRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	wavesRitem->BaseVertexLocation = wavesRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
-
 	mWavesRItem = wavesRitem.get();
 
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(wavesRitem.get());
 
 	auto gridRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
 	gridRitem->World = MathHelper::Identity4x4();
 	gridRitem->ObjCBIndex = 1;
 	gridRitem->Mat = mMaterials["grass"].get();
@@ -556,7 +667,6 @@ void LitWavesApp::BuildRenderItems()
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
-
 	mAllRItems.push_back(std::move(wavesRitem));
 	mAllRItems.push_back(std::move(gridRitem));
 }
@@ -583,6 +693,12 @@ void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const std
 
 		cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress);
 		cmdList->SetGraphicsRootConstantBufferView(1, matCBAddress);
+
+
+		CD3DX12_GPU_DESCRIPTOR_HANDLE texHandle(mSrvHeap->GetGPUDescriptorHandleForHeapStart());
+		texHandle.Offset(ri->Mat->DiffuseSrvHeapIndex, mCbvSrvDescriptorSize);
+		cmdList->SetGraphicsRootDescriptorTable(3, texHandle);
+
 
 		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}

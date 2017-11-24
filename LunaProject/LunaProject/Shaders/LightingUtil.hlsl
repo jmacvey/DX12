@@ -23,6 +23,34 @@ struct Material
 	float Shininess;
 };
 
+//------
+// Toon Shading
+//------
+float ApplyCartoonShadingKd(float kd) {
+	if (kd <= 0.0f) {
+		return 0.4f;
+	}
+	else if (kd <= 0.5f) {
+		return 0.6f;
+	}
+	else {
+		return 1.0f;
+	}
+}
+
+float ApplyCartoonShadingKs(float ks) {
+	if (ks <= 0.1f) {
+		return 0.0f;
+	}
+	else if (ks <= 0.8) {
+		return 0.5f;
+	}
+	else {
+		return 0.8;
+	}
+}
+
+
 float CalcAttenuation(float d, float falloffStart, float falloffEnd)
 {
 	// Linear falloff.
@@ -68,6 +96,7 @@ float3 ComputeDirectionalLight(Light L, Material mat, float3 normal, float3 toEy
 
 	// Scale light down by Lambert's cosine law.
 	float ndotl = max(dot(lightVec, normal), 0.0f);
+	// ndotl = ApplyCartoonShadingKd(ndotl);
 	float3 lightStrength = L.Strength * ndotl;
 
 	return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
@@ -102,33 +131,6 @@ float3 ComputePointLight(Light L, Material mat, float3 pos, float3 normal, float
 	return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
 }
 
-//------
-// Toon Shading
-//------
-float ApplyCartoonShadingKd(float kd) {
-	if (kd <= 0.0f) {
-		return 0.4f;
-	}
-	else if (kd <= 0.5f) {
-		return 0.6f;
-	}
-	else {
-		return 1.0f;
-	}
-}
-
-float ApplyCartoonShadingKs(float ks) {
-	if (ks <= 0.1f) {
-		return 0.0f;
-	}
-	else if (ks <= 0.8) {
-		return 0.5f;
-	}
-	else {
-		return 0.8;
-	}
-}
-
 //---------------------------------------------------------------------------------------
 // Evaluates the lighting equation for spot lights.
 //---------------------------------------------------------------------------------------
@@ -149,7 +151,7 @@ float3 ComputeSpotLight(Light L, Material mat, float3 pos, float3 normal, float3
 
 	// Scale light down by Lambert's cosine law.
 	float ndotl = max(dot(lightVec, normal), 0.0f); // <- kd
-	ndotl = ApplyCartoonShadingKd(ndotl);
+	// ndotl = ApplyCartoonShadingKd(ndotl);
 	float3 lightStrength = L.Strength * ndotl;
 
 	// Attenuate light by distance.
@@ -158,7 +160,7 @@ float3 ComputeSpotLight(Light L, Material mat, float3 pos, float3 normal, float3
 
 	// Scale by spotlight
 	float spotFactor = pow(max(dot(-lightVec, L.Direction), 0.0f), L.SpotPower);
-	spotFactor = ApplyCartoonShadingKs(spotFactor);
+	// spotFactor = ApplyCartoonShadingKs(spotFactor);
 	lightStrength *= spotFactor;
 
 	return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);

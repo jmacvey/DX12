@@ -30,6 +30,7 @@ namespace LightingDemo {
 		inline RenderItem() {} ;
 
 		XMFLOAT4X4 World = MathHelper::Identity4x4();
+		XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 
 		int NumFramesDirty = 3;
 

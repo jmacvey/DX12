@@ -6,7 +6,7 @@
 
 // Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
-#define NUM_DIR_LIGHTS 3
+#define NUM_DIR_LIGHTS 2
 #endif
 
 #ifndef NUM_POINT_LIGHTS
@@ -20,8 +20,12 @@
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
-// Constant data that varies per frame.
 
+Texture2D gDiffuseMap : register(t0);
+
+SamplerState gsamAnisotropicWrap : register(s0);
+
+// varies per frame
 cbuffer cbPerObject : register(b0)
 {
 	float4x4 gWorld;
@@ -65,6 +69,7 @@ struct VertexIn
 {
 	float3 PosL    : POSITION;
 	float3 NormalL : NORMAL;
+	float2 TexC : TEXCOORD;
 };
 
 struct VertexOut
@@ -72,6 +77,7 @@ struct VertexOut
 	float4 PosH    : SV_POSITION;
 	float3 PosW    : POSITION;
 	float3 NormalW : NORMAL;
+	float2 TexC : TEXCOORD;
 };
 
 VertexOut VS(VertexIn vin)
@@ -88,6 +94,8 @@ VertexOut VS(VertexIn vin)
 	// Transform to homogeneous clip space.
 	vout.PosH = mul(posW, gViewProj);
 
+	// just push texture coordinates through for now
+	vout.TexC = vin.TexC;
 	return vout;
 }
 
@@ -100,10 +108,14 @@ float4 PS(VertexOut pin) : SV_Target
 float3 toEyeW = normalize(gEyePosW - pin.PosW);
 
 // Indirect lighting.
-float4 ambient = gAmbientLight*gDiffuseAlbedo;
+
+float4 texDiffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
+float4 diffuseAlbedo = texDiffuseAlbedo * gDiffuseAlbedo;
+
+float4 ambient = gAmbientLight*diffuseAlbedo;
 
 const float shininess = 1.0f - gRoughness;
-Material mat = { gDiffuseAlbedo, gFresnelR0, shininess };
+Material mat = { diffuseAlbedo, gFresnelR0, shininess };
 float3 shadowFactor = 1.0f;
 float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
 	pin.NormalW, toEyeW, shadowFactor);
@@ -111,7 +123,7 @@ float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
 float4 litColor = ambient + directLight;
 
 // Common convention to take alpha from diffuse material.
-litColor.a = gDiffuseAlbedo.a;
+litColor.a = diffuseAlbedo.a;
 
 return litColor;
 }

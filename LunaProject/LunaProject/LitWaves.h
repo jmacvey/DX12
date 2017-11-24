@@ -7,8 +7,11 @@
 #include "Waves.h"
 #include "GeometryGenerator.h"
 #include "GeometricObject.h"
+#include "DDSTextureLoader.h"
 
-using namespace LightingDemo;
+using namespace CrateDemo;
+using LightingDemo::RenderItem;
+using LightingDemo::RenderLayer;
 
 
 class LitWavesApp : public D3DApp {
@@ -35,7 +38,12 @@ private:
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
 	void UpdateWaves(const GameTimer& gt);
+	void AnimateMaterials(const GameTimer& gt);
 
+	void BuildTextures();
+	void BuildDescriptorHeaps();
+	void BuildTextureDescriptors();
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> GetStaticSamplers();
 	void BuildRootSignature();
 	void BuildShadersAndInputLayout();
 	void BuildLandGeometry();
@@ -57,9 +65,11 @@ private:
 	UINT mCbvSrvDescriptorSize = 0;
 
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mSrvHeap = nullptr;
 
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
+	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
 	std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
 

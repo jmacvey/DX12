@@ -210,6 +210,9 @@
     <ClInclude Include="LitColumns.h">
       <Filter>Header Files\Apps</Filter>
     </ClInclude>
+    <ClInclude Include="CrateApp.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -272,7 +275,10 @@
     <ClCompile Include="LitColumns.cpp">
       <Filter>Source Files\Apps</Filter>
     </ClCompile>
-    <ClCompile Include="ShapesDriver.cpp">
+    <ClCompile Include="CrateApp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LitWavesDriver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
