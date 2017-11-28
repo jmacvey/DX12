@@ -52,16 +52,20 @@ void CrateApp::BuildRootSignature()
 	auto srvTable0 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
 		1, 0); // textures in t0
 
-	CD3DX12_ROOT_PARAMETER params[4];
+	auto srvTable1 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+		1, 1);
+
+	CD3DX12_ROOT_PARAMETER params[5];
 	
 	params[0].InitAsDescriptorTable(1, &cbvTable0, D3D12_SHADER_VISIBILITY_ALL);
 	params[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL); // mat constants b1
 	params[2].InitAsDescriptorTable(1, &cbvTable1, D3D12_SHADER_VISIBILITY_ALL);
 	params[3].InitAsDescriptorTable(1, &srvTable0, D3D12_SHADER_VISIBILITY_PIXEL);
+	params[4].InitAsDescriptorTable(1, &srvTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, params, (UINT)staticSamplers.size(),
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(5, params, (UINT)staticSamplers.size(),
 		staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	ComPtr<ID3DBlob> sigBlob = nullptr;
@@ -140,8 +144,8 @@ void CrateApp::BuildGeometry()
 void CrateApp::BuildMaterials()
 {
 	std::unique_ptr<Material> mat = std::make_unique<Material>(mNumFrameResources);
-	mat->Name = "bone";
-	mat->DiffuseSrvHeapIndex = 0;
+	mat->Name = "flare";
+	mat->DiffuseSrvHeapIndex = 1;
 	mat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	mat->FresnelR0 = { 0.6f, 0.4f, 0.6f };
 	mat->Roughness = .80f;
@@ -165,9 +169,9 @@ void CrateApp::BuildRenderItems()
 	obj->ObjCBIndex = 0;
 	obj->Geo = mGeometries["CrateApp"].get();
 	obj->World = MathHelper::Identity4x4();
-	obj->Mat = mMaterials["bone"].get();
+	obj->Mat = mMaterials["flare"].get();
 	addGeometricParams(obj, obj->Geo->DrawArgs["box"]);
-
+	mCrates.emplace_back(obj.get());
 	mRenderItems.emplace_back(std::move(obj));
 }
 
@@ -180,12 +184,11 @@ void CrateApp::BuildDescriptorHeaps()
 	mTexCIndexOffset = mPassCbIndexOffset + mNumFrameResources;
 
 	D3D12_DESCRIPTOR_HEAP_DESC desc;
-	desc.NumDescriptors = (mTexCIndexOffset + 1);
+	desc.NumDescriptors = (mTexCIndexOffset + (UINT)mTextureNames.size());
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	desc.NodeMask = 0;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(mCbvHeap.GetAddressOf())));
-
 }
 
 void CrateApp::BuildConstantBuffers()
@@ -235,13 +238,20 @@ void CrateApp::BuildFrameResources()
 
 void CrateApp::BuildTextures()
 {
-	auto crateTex = std::make_unique<Texture>();
-	crateTex->Name = "crate";
-	crateTex->Filename = L"Textures//WoodCrate01.dds";
-	ThrowIfFailed(CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(),
-		crateTex->Filename.c_str(), crateTex->Resource, crateTex->UploadHeap));
 
-	mTextures[crateTex->Name] = std::move(crateTex);
+	auto createTexture = [&](std::string&& texName, std::wstring&& fileName) {
+		auto tex = std::make_unique<Texture>();
+		tex->Name = texName;
+		tex->Filename = fileName;
+		ThrowIfFailed(CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(),
+			tex->Filename.c_str(), tex->Resource, tex->UploadHeap));
+		mTextureNames.emplace_back(tex->Name);
+		mTextures[tex->Name] = std::move(tex);
+	};
+
+	createTexture("crate", L"Textures//WoodCrate01.dds");
+	createTexture("flare", L"Textures//flare.dds");
+	createTexture("flareAlpha", L"Textures/flarealpha.dds");
 }
 
 void CrateApp::BuildTextureDescriptors()
@@ -250,13 +260,19 @@ void CrateApp::BuildTextureDescriptors()
 	auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart());
 	handle.Offset(mTexCIndexOffset, mCbvSrvDescriptorSize);
 	D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
-	desc.Format = crateTex->GetDesc().Format;
 	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	desc.Texture2D.MostDetailedMip = 0;
-	desc.Texture2D.MipLevels = crateTex->GetDesc().MipLevels;
 	desc.Texture2D.ResourceMinLODClamp = 0.0f;
-	md3dDevice->CreateShaderResourceView(crateTex.Get(), &desc, handle);
+	desc.Texture2D.MostDetailedMip = 0;
+
+	UINT numTextures = (UINT) mTextureNames.size();
+	for (UINT i = 0; i < numTextures; ++i) {
+		auto resource = mTextures[mTextureNames[i]]->Resource;
+		desc.Format = resource->GetDesc().Format;
+		desc.Texture2D.MipLevels = resource->GetDesc().MipLevels;
+		md3dDevice->CreateShaderResourceView(resource.Get(), &desc, handle);
+		handle.Offset(1, mCbvSrvDescriptorSize);
+	}
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> CrateApp::GetStaticSamplers()
@@ -311,7 +327,8 @@ void CrateApp::Update(const GameTimer & gt)
 {
 	UpdateCamera(gt);
 	OnKeyboardInput(gt);
-	
+	AnimateFlares(gt);
+
 	mCurrentFrameIndex = (mCurrentFrameIndex + 1) % mNumFrameResources;
 	mCurrentFrameResource = mFrameResources[mCurrentFrameIndex].get();
 
@@ -363,8 +380,10 @@ void CrateApp::UpdateObjectCBs(const GameTimer & gt)
 	for (auto& rItem : mRenderItems) {
 		if (rItem->NumFramesDirty > 0) {
 			XMMATRIX w = XMLoadFloat4x4(&rItem->World);
+			XMMATRIX tt = XMLoadFloat4x4(&rItem->TexTransform);
 			ObjectConstants oc;
 			XMStoreFloat4x4(&oc.World, w);
+			XMStoreFloat4x4(&oc.TexTransform, tt);
 			currObjCb->CopyData(rItem->ObjCBIndex, oc);
 			rItem->NumFramesDirty--;
 		}
@@ -375,7 +394,9 @@ void CrateApp::UpdateObjectCBs(const GameTimer & gt)
 	for (auto& materialTuple : mMaterials) {
 		auto mat = materialTuple.second.get();
 		if (mat->NumFramesDirty > 0) {
+			XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
 			MaterialConstants mc;
+			XMStoreFloat4x4(&mc.MatTransform, matTransform);
 			mc.DiffuseAlbedo = mat->DiffuseAlbedo;
 			mc.FresnelR0 = mat->FresnelR0;
 			mc.Roughness = mat->Roughness;
@@ -417,6 +438,17 @@ void CrateApp::UpdatePassCB(const GameTimer & gt)
 	mMainPassCB.Lights[0].Strength = XMFLOAT3(1.0f, 1.0f, 0.9f);
 	mMainPassCB.Lights[1].Strength = XMFLOAT3(1.0f, 0.2f, 0.2f);
 	mCurrentFrameResource->PassCB->CopyData(0, mMainPassCB);
+}
+
+void CrateApp::AnimateFlares(const GameTimer & gt)
+{
+	auto currentCrate = mCrates[0];
+
+	XMMATRIX mat = XMLoadFloat4x4(&currentCrate->TexTransform);
+	XMMATRIX rotationZ = XMMatrixRotationZ(XMConvertToRadians(45.0f*gt.DeltaTime()));
+	XMMATRIX next =  mat*rotationZ;
+	XMStoreFloat4x4(&currentCrate->TexTransform, next);
+	currentCrate->NumFramesDirty = mNumFrameResources;
 }
 
 void CrateApp::Draw(const GameTimer & gt)
@@ -472,20 +504,25 @@ void CrateApp::DrawRenderItems(const std::vector<std::unique_ptr<RenderItem>>& r
 	auto matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
 	
 	auto mat = mCurrentFrameResource->MaterialCB->Resource();
+	auto getOffsetedHandle = [&](UINT&& offset) {
+		auto handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+		handle.Offset(offset, mCbvSrvDescriptorSize);
+		return handle;
+	};
+
 	for (uint16_t i = 0; i < sz; ++i) {
 		auto rItem = rItems[i].get();
 		mCommandList->IASetVertexBuffers(0, 1, &rItem->Geo->VertexBufferView());
 		mCommandList->IASetIndexBuffer(&rItem->Geo->IndexBufferView());
 		mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		auto descriptorIndexOffset = mCurrentFrameIndex * sz + i;
-		auto ocbdh = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-		ocbdh.Offset(descriptorIndexOffset, mCbvSrvDescriptorSize);
-		mCommandList->SetGraphicsRootDescriptorTable(0, ocbdh);
+		mCommandList->SetGraphicsRootDescriptorTable(0, getOffsetedHandle(mCurrentFrameIndex * sz + i));
 
-		ocbdh = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-		ocbdh.Offset(mTexCIndexOffset + rItem->Mat->DiffuseSrvHeapIndex, mCbvSrvDescriptorSize);
-		mCommandList->SetGraphicsRootDescriptorTable(3, ocbdh); // <- textures in root param index 3
+		mCommandList->SetGraphicsRootDescriptorTable(3, 
+			getOffsetedHandle(mTexCIndexOffset + rItem->Mat->DiffuseSrvHeapIndex)); // <- diffuse map in root param index 3
+		
+		mCommandList->SetGraphicsRootDescriptorTable(4,
+			getOffsetedHandle(mTexCIndexOffset + rItem->Mat->DiffuseSrvHeapIndex + 1));
 
 		auto matAddress = mat->GetGPUVirtualAddress() + rItem->Mat->MatCBIndex * matCBByteSize;
 		mCommandList->SetGraphicsRootConstantBufferView(1, matAddress);

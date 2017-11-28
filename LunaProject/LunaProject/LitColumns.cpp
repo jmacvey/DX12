@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "LitColumns.h"
 
+// Heap Locations:
+// Object Constants | Material Constants | PassConstants | textures
+
 LitColumns::LitColumns(HINSTANCE hInstance) : D3DApp(hInstance)
 {
 }
@@ -24,10 +27,12 @@ bool LitColumns::Initialize()
 	SetShadersAndInputLayout();
 	BuildGeometry();
 	BuildMaterials();
+	BuildTextures();
 	BuildRenderItems();
 	BuildFrameResources();
 	BuildDescriptorHeaps();
 	BuildConstantBuffers();
+	BuildTextureDescriptors();
 	BuildPSOs();
 
 	ThrowIfFailed(mCommandList->Close());
@@ -70,8 +75,8 @@ void LitColumns::OnMouseMove(WPARAM btnState, int x, int y) {
 	}
 	else if ((btnState & MK_RBUTTON) != 0) {
 
-		float dx = 0.05f*static_cast<float>(x - mLastMousePos.x);
-		float dy = 0.05f*static_cast<float>(y - mLastMousePos.y);
+		float dx = 0.5f*static_cast<float>(x - mLastMousePos.x);
+		float dy = 0.5f*static_cast<float>(y - mLastMousePos.y);
 
 		mRadius += dx - dy;
 
@@ -192,18 +197,45 @@ void LitColumns::UpdateCamera(const GameTimer& gt)
 	XMStoreFloat4x4(&mView, v);
 }
 
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> LitColumns::GetStaticSamplers()
+{
+	//UINT shaderRegister,
+	//	D3D12_FILTER filter = D3D12_FILTER_ANISOTROPIC,
+	//	D3D12_TEXTURE_ADDRESS_MODE addressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+	//	D3D12_TEXTURE_ADDRESS_MODE addressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+	//	D3D12_TEXTURE_ADDRESS_MODE addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+	//	FLOAT mipLODBias = 0,
+	//	UINT maxAnisotropy = 16,
+	CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
+		0,
+		D3D12_FILTER_ANISOTROPIC,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		0.0f,
+		8
+	);
+
+	return { anisotropicWrap };
+}
+
 void LitColumns::BuildRootSignature()
 {
 	D3D12_DESCRIPTOR_RANGE cbvTable0 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0); // object
 	D3D12_DESCRIPTOR_RANGE cbvTable1 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1); // material
 	D3D12_DESCRIPTOR_RANGE cbvTable2 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2); // pass
+	D3D12_DESCRIPTOR_RANGE srvTable0 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // texture
 
-	CD3DX12_ROOT_PARAMETER rootParams[3];
+	CD3DX12_ROOT_PARAMETER rootParams[4];
 	rootParams[0].InitAsDescriptorTable(1, &cbvTable0);
 	rootParams[1].InitAsDescriptorTable(1, &cbvTable1);
 	rootParams[2].InitAsDescriptorTable(1, &cbvTable2);
+	rootParams[3].InitAsDescriptorTable(1, &srvTable0);
 
-	CD3DX12_ROOT_SIGNATURE_DESC desc(3, rootParams, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	auto staticSamplers = GetStaticSamplers();
+
+	CD3DX12_ROOT_SIGNATURE_DESC desc(4, rootParams, (UINT)staticSamplers.size(),
+		staticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	ComPtr<ID3DBlob> rootSig;
 	ComPtr<ID3DBlob> errorBlob;
@@ -221,14 +253,17 @@ void LitColumns::BuildRootSignature()
 
 void LitColumns::BuildDescriptorHeaps()
 {
-	mPassCbIndexOffset = ((UINT)mAllRenderItems.size() + (UINT)mMaterials.size())* mNumFrameResources;
-	
 	// materials start at numRenderItems
-	// pass constants start at numRenderItems * frames + numMaterials
 	mMatCbIndexOffset = (UINT)mAllRenderItems.size() * mNumFrameResources;
+
+	// pass constants start at (numRenderItems + numMaterials) *frames + numMaterials
+	mPassCbIndexOffset = ((UINT)mAllRenderItems.size() + (UINT)mMaterials.size())* mNumFrameResources;
+
+	mTextureCbIndexOffset = mPassCbIndexOffset + mNumFrameResources;
+
 	D3D12_DESCRIPTOR_HEAP_DESC desc;
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	desc.NumDescriptors = ((UINT)mAllRenderItems.size() + (UINT)mMaterials.size() + 1)* mNumFrameResources;
+	desc.NumDescriptors = ((UINT)mAllRenderItems.size() + (UINT)mMaterials.size() + 1)* mNumFrameResources + (UINT)mTextures.size();
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	desc.NodeMask = 0;
 	md3dDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(mCbvHeap.GetAddressOf()));
@@ -237,16 +272,19 @@ void LitColumns::BuildDescriptorHeaps()
 void LitColumns::BuildGeometry()
 {
 	GeometryGenerator geoGen;
-	auto cylinder = geoGen.CreateCylinder(3.0f, 1.0f, 10.0f, 20, 20);
+	auto cylinder = geoGen.CreateCylinder(2.0f, 1.0f, 15.0f, 20, 20);
 	auto grid = geoGen.CreateGrid(160.0f, 120.0f, 40, 50);
+	auto sphere = geoGen.CreateGeosphere(1.0f, 3);
 	GeometricObject geoObj("columns");
 	geoObj.AddObject(cylinder);
 	geoObj.AddObject(grid);
+	geoObj.AddObject(sphere);
 
 	auto convertVertex = [](const GeometryGenerator::Vertex& v) -> Vertex {
 		Vertex vTo;
 		vTo.Pos = v.Position;
 		vTo.Normal = v.Normal;
+		vTo.TexC = v.TexC;
 		return vTo;
 	};
 
@@ -272,10 +310,11 @@ void LitColumns::BuildGeometry()
 		mCommandList.Get(), vertices.data(), vbByteSize, meshGeometry->VertexBufferUploader);
 	meshGeometry->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, meshGeometry->IndexBufferUploader);
-
+	
 	//auto sphere = geoGen.CreateGeosphere(2.0f, 2);
 	meshGeometry->DrawArgs["cylinder"] = geoObj.GetSubmesh(0);
 	meshGeometry->DrawArgs["grid"] = geoObj.GetSubmesh(1);
+	meshGeometry->DrawArgs["sphere"] = geoObj.GetSubmesh(2);
 	mGeometries[meshGeometry->Name] = std::move(meshGeometry);
 }
 
@@ -290,36 +329,72 @@ void LitColumns::BuildRenderItems()
 		rItem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;;
 	};
 
-	for (uint16_t i = 0; i < 4; ++i) {
+	auto makeRenderItem = [&](const XMMATRIX& world, UINT&& objCbIndex, std::string&& geometryName, std::string&& materialName) {
 		obj = std::make_unique<RenderItem>();
-		obj->ObjCBIndex = i;
-		addSubmesh(obj.get(), mGeometries["columns"]->DrawArgs["cylinder"]);
+		obj->ObjCBIndex = objCbIndex;
+		addSubmesh(obj.get(), mGeometries["columns"]->DrawArgs[geometryName]);
 		obj->Geo = mGeometries["columns"].get();
-		obj->Mat = mMaterials["gold"].get();
-		XMStoreFloat4x4(&obj->World, XMMatrixTranslation(5.0f + i % 2 == 0 ? i * 6.0f : i * -6.0f,
-			5.0f, 
-			i % 2 == 0 ? -5.0f : + 5.0f));
+		obj->Mat = mMaterials[materialName].get();
+		XMStoreFloat4x4(&obj->World, world);
 		mAllRenderItems.emplace_back(std::move(obj));
+	};
+
+	for (uint16_t i = 0; i < 5; ++i) {
+		XMMATRIX leftCyl = XMMatrixTranslation(-10.0f, 7.5f, +8.0f*i - 20.0f);
+		XMMATRIX rightCyl = XMMatrixTranslation(+10.0f, 7.5f, +8.0f*i - 20.0f);
+
+		makeRenderItem(leftCyl, i * 4, "cylinder", "stone"); // 0, 2, 4, 
+		makeRenderItem(rightCyl, i * 4 + 1, "cylinder", "stone"); // 1, 3, 5
+
+		XMMATRIX leftSphere = XMMatrixTranslation(-10.0f, 16.0f, +8.0f*i - 20.0f);
+		XMMATRIX rightSphere = XMMatrixTranslation(+10.0f, 16.0f, +8.0f*i - 20.0f);
+		makeRenderItem(leftSphere, i * 4 + 2, "sphere", "stone");
+		makeRenderItem(rightSphere, i * 4 + 3, "sphere", "stone");
 	}
 
+	XMMATRIX texTransform = XMMatrixScaling(5.0f, 5.0f, 5.0f);
 	obj = std::make_unique<RenderItem>();
-	obj->ObjCBIndex = 4;
+	obj->ObjCBIndex = 20;
 	addSubmesh(obj.get(), mGeometries["columns"]->DrawArgs["grid"]);
 	obj->Geo = mGeometries["columns"].get();
-	obj->Mat = mMaterials["grass"].get();
+	obj->Mat = mMaterials["tile"].get();
 	obj->World = MathHelper::Identity4x4();
+	XMStoreFloat4x4(&obj->TexTransform, texTransform);
 	mAllRenderItems.emplace_back(std::move(obj));
+}
+
+void LitColumns::BuildTextures()
+{
+	auto createTex = [&](const std::string& name, const std::wstring& fileName) {
+		auto tex = std::make_unique<Texture>();
+		tex->Name = name;
+		tex->Filename = fileName;
+		ThrowIfFailed(CreateDDSTextureFromFile12(
+			md3dDevice.Get(),
+			mCommandList.Get(),
+			tex->Filename.c_str(),
+			tex->Resource,
+			tex->UploadHeap));
+		mTextureNames.push_back(tex->Name);
+		mTextures[tex->Name] = std::move(tex);
+	};
+
+	createTex("grass", L"Textures//grass.dds");
+	createTex("water", L"Textures//water1.dds");
+	createTex("tile", L"Textures//tile.dds");
+	createTex("stone", L"Textures//stone.dds");
 }
 
 void LitColumns::SetShadersAndInputLayout()
 {
 
-	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "PS", "ps_5_1");
+	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", nullptr, "PS", "ps_5_1");
 
 	mInputLayout = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 }
 
@@ -387,25 +462,49 @@ void LitColumns::BuildConstantBuffers()
 		handle.Offset(mPassCbIndexOffset + i, mCbvSrvDescriptorSize);
 		md3dDevice->CreateConstantBufferView(&desc, handle);
 	}
+
+}
+
+void LitColumns::BuildTextureDescriptors()
+{
+	uint16_t sz = (uint16_t)mTextureNames.size();
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	auto cbvHeapHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart());
+	cbvHeapHandle.Offset(mTextureCbIndexOffset, mCbvSrvDescriptorSize);
+	for (uint16_t i = 0; i < sz; ++i) {
+		auto texResource = mTextures[mTextureNames[i]]->Resource;
+		srvDesc.Format = texResource->GetDesc().Format;
+		srvDesc.Texture2D.MipLevels = texResource->GetDesc().MipLevels;
+		md3dDevice->CreateShaderResourceView(texResource.Get(), &srvDesc, cbvHeapHandle);
+		cbvHeapHandle.Offset(1, mCbvSrvDescriptorSize);
+	}
 }
 
 void LitColumns::BuildMaterials()
 {
-	std::unique_ptr<Material> grass = std::make_unique<Material>(mNumFrameResources);
-	grass->MatCBIndex = 0;
-	grass->Name = "grass";
-	grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
-	grass->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
-	grass->Roughness = 0.125f;
-	mMaterials["grass"] = std::move(grass);
+	std::unique_ptr<Material> mat = std::make_unique<Material>(mNumFrameResources);
+	mat->MatCBIndex = 0;
+	mat->Name = "tile";
+	mat->DiffuseSrvHeapIndex = 2;
+	mat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	mat->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	mat->Roughness = 0.125f;
+	mat->MatTransform = MathHelper::Identity4x4();
+	mMaterials["tile"] = std::move(mat);
 
-	std::unique_ptr<Material> gold = std::make_unique<Material>(mNumFrameResources);
-	gold->MatCBIndex = 1;
-	gold->Name = "gold";
-	gold->DiffuseAlbedo = XMFLOAT4(1.0f, 0.5f, 0.2f, 1.0f);
-	gold->FresnelR0 = XMFLOAT3(0.55f, 0.46f, 0.00f);
-	gold->Roughness = 0.01f;
-	mMaterials["gold"] = std::move(gold);
+	mat = std::make_unique<Material>(mNumFrameResources);
+	mat->MatCBIndex = 1;
+	mat->DiffuseSrvHeapIndex = 3;
+	mat->Name = "stone";
+	mat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	mat->FresnelR0 = XMFLOAT3(0.55f, 0.46f, 0.00f);
+	mat->Roughness = 0.01f;
+	mat->MatTransform = MathHelper::Identity4x4();
+	mMaterials["stone"] = std::move(mat);
 }
 
 void LitColumns::BuildPSOs()
@@ -442,7 +541,9 @@ void LitColumns::UpdateObjectCBs(const GameTimer & gt)
 		if (renderItem->NumFramesDirty > 0) {
 			ObjectConstants oc;
 			XMMATRIX world = XMLoadFloat4x4(&renderItem->World);
+			XMMATRIX texTransform = XMLoadFloat4x4(&renderItem->TexTransform);
 			XMStoreFloat4x4(&oc.World, XMMatrixTranspose(world));
+			XMStoreFloat4x4(&oc.TexTransform, XMMatrixTranspose(texTransform));
 			currObjectCB->CopyData(renderItem->ObjCBIndex, oc);
 			renderItem->NumFramesDirty--;
 		}
@@ -455,10 +556,12 @@ void LitColumns::UpdateMaterialCBs(const GameTimer & gt)
 	for (auto& material : mMaterials) {
 		Material* mat = material.second.get();
 		if (mat->NumFramesDirty > 0) {
+			XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
 			MaterialConstants mc;
 			mc.DiffuseAlbedo = mat->DiffuseAlbedo;
 			mc.FresnelR0 = mat->FresnelR0;
 			mc.Roughness = mat->Roughness;
+			XMStoreFloat4x4(&mc.MatTransform, matTransform);
 
 			currMaterialCB->CopyData(mat->MatCBIndex, mc);
 			mat->NumFramesDirty--;
@@ -502,6 +605,11 @@ void LitColumns::DrawRenderItems(const std::vector<std::unique_ptr<RenderItem>>&
 {
 	auto sz = renderItems.size();
 	auto matSz = (UINT)mMaterials.size();
+	auto getOffsetedCbvDescriptorHandle = [&](UINT&& indexOffset) {
+		auto h = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
+		h.Offset(indexOffset, mCbvSrvDescriptorSize);
+		return h;
+	};
 	for (uint32_t i = 0; i < sz; ++i) {
 		auto rItem = renderItems[i].get();
 
@@ -511,16 +619,16 @@ void LitColumns::DrawRenderItems(const std::vector<std::unique_ptr<RenderItem>>&
 		mCommandList->IASetPrimitiveTopology(rItem->PrimitiveType);
 
 		// bind object cosntants
-		auto cbvIndex = rItem->ObjCBIndex + mCurrFrameResourceIndex * sz;
-		auto descriptorAddr = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-		descriptorAddr.Offset(cbvIndex, mCbvSrvDescriptorSize);
-		mCommandList->SetGraphicsRootDescriptorTable(0, descriptorAddr);
+		mCommandList->SetGraphicsRootDescriptorTable(0,
+			getOffsetedCbvDescriptorHandle(rItem->ObjCBIndex + mCurrFrameResourceIndex * sz));
 
 		// bind material constants
-		auto matCbvIndex = mMatCbIndexOffset + rItem->Mat->MatCBIndex + matSz * mCurrFrameResourceIndex;
-		auto matDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
-		matDescriptorHandle.Offset(matCbvIndex, mCbvSrvDescriptorSize);
-		mCommandList->SetGraphicsRootDescriptorTable(1, matDescriptorHandle);
+		mCommandList->SetGraphicsRootDescriptorTable(1,
+			getOffsetedCbvDescriptorHandle(mMatCbIndexOffset + rItem->Mat->MatCBIndex + matSz * mCurrFrameResourceIndex));
+
+		// bind textures
+		mCommandList->SetGraphicsRootDescriptorTable(3,
+			getOffsetedCbvDescriptorHandle(mTextureCbIndexOffset + rItem->Mat->DiffuseSrvHeapIndex));
 
 		mCommandList->DrawIndexedInstanced(rItem->IndexCount, 1, rItem->StartIndexLocation, rItem->BaseVertexLocation, 0);
 	}

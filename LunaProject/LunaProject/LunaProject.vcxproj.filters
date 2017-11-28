@@ -275,11 +275,11 @@
     <ClCompile Include="LitColumns.cpp">
       <Filter>Source Files\Apps</Filter>
     </ClCompile>
-    <ClCompile Include="CrateApp.cpp">
+    <ClCompile Include="CrateDriver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="LitWavesDriver.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="CrateApp.cpp">
+      <Filter>Source Files\Apps</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

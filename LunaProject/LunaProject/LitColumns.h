@@ -7,7 +7,8 @@
 #include "GeometryGenerator.h"
 #include "GeometricObject.h"
 
-using namespace LightingDemo;
+using namespace CrateDemo;
+using LightingDemo::RenderItem;
 
 class LitColumns : public D3DApp {
 public:
@@ -29,13 +30,17 @@ private:
 
 	void UpdateCamera(const GameTimer& gt);
 
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> GetStaticSamplers();
+
 	void BuildRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildGeometry();
 	void BuildRenderItems();
+	void BuildTextures();
 	void SetShadersAndInputLayout();
 	void BuildFrameResources();
 	void BuildConstantBuffers();
+	void BuildTextureDescriptors();
 	void BuildMaterials();
 	void BuildPSOs();
 
@@ -66,11 +71,14 @@ private:
 	PassConstants mMainPassCB;
 	uint32_t mPassCbIndexOffset = 0;
 	uint32_t mMatCbIndexOffset = 0;
+	uint32_t mTextureCbIndexOffset = 0;
 
 	std::unique_ptr<GeometricObject> mGeometry;
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
-	
+	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
+	std::vector<std::string> mTextureNames;
+
 	std::vector<std::unique_ptr<RenderItem>> mAllRenderItems;
 
 	float mTheta = 1.5f*XM_PI;

@@ -23,12 +23,15 @@
 
 Texture2D gDiffuseMap : register(t0);
 
+Texture2D gAlphaMap : register(t1);
+
 SamplerState gsamAnisotropicWrap : register(s0);
 
 // varies per frame
 cbuffer cbPerObject : register(b0)
 {
 	float4x4 gWorld;
+	float4x4 gTexTransform;
 };
 
 cbuffer cbMaterial : register(b1)
@@ -95,7 +98,8 @@ VertexOut VS(VertexIn vin)
 	vout.PosH = mul(posW, gViewProj);
 
 	// just push texture coordinates through for now
-	vout.TexC = vin.TexC;
+	float4 transformedTexC = mul(float4(vin.TexC, 0.0f, 0.0f) + float4(-0.5f, -0.5f, 0.0f, 0.0f), gTexTransform);
+	vout.TexC = mul(transformedTexC + float4(0.5f, 0.5f, 0.0f, 0.0f), gMatTransform).xy;
 	return vout;
 }
 
@@ -109,7 +113,11 @@ float3 toEyeW = normalize(gEyePosW - pin.PosW);
 
 // Indirect lighting.
 
-float4 texDiffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
+float4 tDiffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
+float4 texAlpha = gAlphaMap.Sample(gsamAnisotropicWrap, pin.TexC);
+
+float4 texDiffuseAlbedo = tDiffuseAlbedo * texAlpha;
+
 float4 diffuseAlbedo = texDiffuseAlbedo * gDiffuseAlbedo;
 
 float4 ambient = gAmbientLight*diffuseAlbedo;

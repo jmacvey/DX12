@@ -197,6 +197,7 @@
     <ClCompile Include="Box.cpp" />
     <ClCompile Include="BoxApp.cpp" />
     <ClCompile Include="CrateApp.cpp" />
+    <ClCompile Include="CrateDriver.cpp" />
     <ClCompile Include="D3DApp.cpp" />
     <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
@@ -209,7 +210,6 @@
     <ClCompile Include="LandAndWaves.cpp" />
     <ClCompile Include="LitColumns.cpp" />
     <ClCompile Include="LitWaves.cpp" />
-    <ClCompile Include="LitWavesDriver.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="Pyramid.cpp" />
     <ClCompile Include="ShapesApp.cpp" />

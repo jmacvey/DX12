@@ -42,6 +42,7 @@ private:
 	void UpdateCamera(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdatePassCB(const GameTimer& gt);
+	void AnimateFlares(const GameTimer& gt);
 
 	virtual void Draw(const GameTimer & gt) override;
 	void DrawRenderItems(const std::vector<std::unique_ptr<RenderItem>>& rItems);
@@ -59,7 +60,10 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
 	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
+	std::vector<std::string> mTextureNames;
+
 	std::vector<std::unique_ptr<RenderItem>> mRenderItems;
+	std::vector<RenderItem*> mCrates;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 	
 	PassConstants mMainPassCB;
