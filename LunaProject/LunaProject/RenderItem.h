@@ -48,6 +48,8 @@ namespace LightingDemo {
 
 	enum class RenderLayer : int {
 		Opaque = 0,
+		Blended = 1,
+		AlphaTested = 2,
 		Count
 	};
 }

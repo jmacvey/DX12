@@ -6,7 +6,7 @@
 
 // Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
-#define NUM_DIR_LIGHTS 2
+#define NUM_DIR_LIGHTS 4
 #endif
 
 #ifndef NUM_POINT_LIGHTS
@@ -59,6 +59,10 @@ cbuffer cbPass : register(b2)
 	float gDeltaTime;
 	float4 gAmbientLight;
 
+	float4 gFogColor;
+	float gFogStart;
+	float gFogRange;
+	float2 cbPerObjectPad2;
 	// Indices [0, NUM_DIR_LIGHTS) are directional lights;
 	// indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
 	// indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
@@ -106,28 +110,39 @@ float4 PS(VertexOut pin) : SV_Target
 	// Interpolating normal can unnormalize it, so renormalize it.
 	pin.NormalW = normalize(pin.NormalW);
 
-// Vector from point being lit to eye. 
-float3 toEyeW = normalize(gEyePosW - pin.PosW);
+	// Vector from point being lit to eye. 
+	float3 toEyeW = gEyePosW - pin.PosW;
+	float distToEye = length(toEyeW);
+	toEyeW /= distToEye; // normalize
 
 // Indirect lighting.
 
-float4 texDiffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
-float4 diffuseAlbedo = texDiffuseAlbedo * gDiffuseAlbedo;
+	float4 texDiffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
+	float4 diffuseAlbedo = texDiffuseAlbedo * gDiffuseAlbedo;
 
-float4 ambient = gAmbientLight*diffuseAlbedo;
+#ifdef ALPHA_TEST
+	clip(diffuseAlbedo.a - 0.1f);
+#endif
 
-const float shininess = 1.0f - gRoughness;
-Material mat = { diffuseAlbedo, gFresnelR0, shininess };
-float3 shadowFactor = 1.0f;
-float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
-	pin.NormalW, toEyeW, shadowFactor);
+	float4 ambient = gAmbientLight*diffuseAlbedo;
 
-float4 litColor = ambient + directLight;
+	const float shininess = 1.0f - gRoughness;
+	Material mat = { diffuseAlbedo, gFresnelR0, shininess };
+	float3 shadowFactor = 1.0f;
+	float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
+		pin.NormalW, toEyeW, shadowFactor);
 
-// Common convention to take alpha from diffuse material.
-litColor.a = diffuseAlbedo.a;
+	float4 litColor = ambient + directLight;
 
-return litColor;
+#ifdef FOG
+	float fogAmount = saturate((distToEye - gFogStart) / gFogRange);
+	litColor = lerp(litColor, gFogColor, fogAmount);
+#endif
+
+	// Common convention to take alpha from diffuse material.
+	litColor.a = diffuseAlbedo.a;
+
+	return litColor;
 }
 
 

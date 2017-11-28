@@ -43,11 +43,14 @@ private:
 	void BuildTextures();
 	void BuildDescriptorHeaps();
 	void BuildTextureDescriptors();
+
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> GetStaticSamplers();
 	void BuildRootSignature();
 	void BuildShadersAndInputLayout();
 	void BuildLandGeometry();
 	void BuildWavesGeometryBuffers();
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC BuildOpaquePSO();
+	void BuildBlendedPSO(D3D12_GRAPHICS_PIPELINE_STATE_DESC& prevPSO);
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -82,7 +85,7 @@ private:
 
 	std::unique_ptr<Waves> mWaves;
 
-	PassConstants mMainPassCB;
+	PassConstants mMainPassCB = {};
 
 	XMFLOAT3 mEyePos = { 0.0f, 0.0f, 0.0f };
 	XMFLOAT4X4 mView = MathHelper::Identity4x4();

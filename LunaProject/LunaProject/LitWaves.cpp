@@ -101,7 +101,7 @@ void LitWavesApp::Draw(const GameTimer & gt)
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	// Clear the back buffer and depth buffer.
-	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), (float*)&mMainPassCB.FogColor, 0, nullptr);
 	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
@@ -116,6 +116,12 @@ void LitWavesApp::Draw(const GameTimer & gt)
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+
+	mCommandList->SetPipelineState(mPSOs["alphaTested"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
+
+	mCommandList->SetPipelineState(mPSOs["transparent"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
 
 	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -179,7 +185,7 @@ void LitWavesApp::OnMouseMove(WPARAM btnState, int x, int y)
 		mRadius += dx - dy;
 
 		// Restrict the radius.
-		mRadius = MathHelper::Clamp(mRadius, 5.0f, 150.0f);
+		mRadius = MathHelper::Clamp(mRadius, 5.0f, 1000.0f);
 	}
 
 	mLastMousePos.x = x;
@@ -284,12 +290,20 @@ void LitWavesApp::UpdateMainPassCB(const GameTimer & gt)
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
-
 	XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
-
+	mMainPassCB.FogColor = XMFLOAT4(0.7f, 0.7f, 0.7f, 1.0f);
+	mMainPassCB.FogRange = 150.0f;
+	mMainPassCB.FogStart = 5.0f;
 	XMStoreFloat3(&mMainPassCB.Lights[0].Direction, lightDir);
 	mMainPassCB.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
+	mMainPassCB.Lights[1].Direction = { 0.57735f, -0.57735f, 0.57735f };
+	mMainPassCB.Lights[1].Strength = { 0.9f, 0.9f, 0.8f };
+	mMainPassCB.Lights[2].Direction = { -0.57735f, -0.57735f, 0.57735f };
+	mMainPassCB.Lights[2].Strength = { 0.3f, 0.3f, 0.3f };
+	mMainPassCB.Lights[3].Direction = { 0.0f, -0.707f, -0.707f };
+	mMainPassCB.Lights[3].Strength = { 0.15f, 0.15f, 0.15f };
 
+	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
 }
@@ -366,14 +380,15 @@ void LitWavesApp::BuildTextures()
 		mTextures[tex->Name] = std::move(tex);
 	};
 
-	createTex("water", L"Textures//water1.dds");
+	createTex("water", L"Textures//modTextures//water1.dds");
 	createTex("grass", L"Textures//grass.dds");
+	createTex("wireFence", L"Textures/WireFence.dds");
 }
 
 void LitWavesApp::BuildDescriptorHeaps()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC desc;
-	desc.NumDescriptors = 2;
+	desc.NumDescriptors = (UINT)mTextures.size();
 	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	desc.NodeMask = 0;
 	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -398,6 +413,7 @@ void LitWavesApp::BuildTextureDescriptors()
 
 	buildTextureDescriptor(mTextures["grass"]);
 	buildTextureDescriptor(mTextures["water"]);
+	buildTextureDescriptor(mTextures["wireFence"]);
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> LitWavesApp::GetStaticSamplers()
@@ -451,7 +467,20 @@ void LitWavesApp::BuildRootSignature()
 void LitWavesApp::BuildShadersAndInputLayout()
 {
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", nullptr, "VS", "vs_5_0");
-	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", nullptr, "PS", "ps_5_0");
+
+	const D3D_SHADER_MACRO alphaDefines[] = {
+		"FOG", "0",
+		"ALPHA_TEST", "1",
+		NULL, NULL
+	};
+
+	const D3D_SHADER_MACRO fog[] = {
+		"FOG", "0",
+		NULL, NULL
+	};
+
+	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", fog, "PS", "ps_5_0");
+	mShaders["alphaTestedPS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", alphaDefines, "PS", "ps_5_0");
 
 	mInputLayout =
 	{
@@ -465,15 +494,19 @@ void LitWavesApp::BuildLandGeometry()
 {
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(160.0f, 160.0f, 50, 50);
-
+	auto box = geoGen.CreateBox(5.0f, 5.0f, 5.0f, 3);
 	//
 	// Extract the vertex elements we are interested and apply the height function to
 	// each vertex.  In addition, color the vertices based on their height so we have
 	// sandy looking beaches, grassy low hills, and snow mountain peaks.
 	//
+	
+	auto gridVertexCount = (UINT)grid.Vertices.size();
+	auto boxVertexCount = (UINT)box.Vertices.size();
+	auto totalVertexSize = gridVertexCount + boxVertexCount;
 
-	std::vector<Vertex> vertices(grid.Vertices.size());
-	for (size_t i = 0; i < grid.Vertices.size(); ++i)
+	std::vector<Vertex> vertices(totalVertexSize);
+	for (UINT i = 0; i < gridVertexCount; ++i)
 	{
 		auto& p = grid.Vertices[i].Position;
 		vertices[i].Pos = p;
@@ -482,10 +515,30 @@ void LitWavesApp::BuildLandGeometry()
 		vertices[i].TexC = grid.Vertices[i].TexC;
 	}
 
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	auto baseVertexCount = 0;
+	for (UINT i = gridVertexCount; i < totalVertexSize; ++i, ++baseVertexCount) {
+		vertices[i].Pos = box.Vertices[baseVertexCount].Position;
+		vertices[i].Normal = box.Vertices[baseVertexCount].Normal;
+		vertices[i].TexC = box.Vertices[baseVertexCount].TexC;
+	}
 
-	std::vector<std::uint16_t> indices = grid.GetIndices16();
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+	const UINT vbByteSize = totalVertexSize * sizeof(Vertex);
+
+	std::vector<std::uint16_t> gridIndices = grid.GetIndices16();
+	std::vector<std::uint16_t> boxIndices = box.GetIndices16();
+	const UINT gridIndexCount = (UINT)gridIndices.size();
+	const UINT boxIndexCount = (UINT)boxIndices.size();
+	const UINT numIndices = gridIndexCount + boxIndexCount;
+
+	std::vector<std::uint16_t> allIndices(numIndices);
+	uint16_t currIndex = 0;
+	auto concatIndices = [&](const std::vector<uint16_t>& toConcat) {
+		std::for_each(toConcat.begin(), toConcat.end(), [&](uint16_t toAdd) { allIndices[currIndex++] = toAdd; });
+	};
+	concatIndices(gridIndices);
+	concatIndices(boxIndices);
+
+	const UINT ibByteSize = numIndices * sizeof(std::uint16_t);
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "landGeo";
@@ -494,13 +547,13 @@ void LitWavesApp::BuildLandGeometry()
 	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
 
 	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), allIndices.data(), ibByteSize);
 
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+		mCommandList.Get(), allIndices.data(), ibByteSize, geo->IndexBufferUploader);
 
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
@@ -508,14 +561,20 @@ void LitWavesApp::BuildLandGeometry()
 	geo->IndexBufferByteSize = ibByteSize;
 
 	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)indices.size();
+	submesh.IndexCount = gridIndexCount;
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
 
 	geo->DrawArgs["grid"] = submesh;
 
+	submesh.IndexCount = boxIndexCount;
+	submesh.StartIndexLocation = gridIndexCount;
+	submesh.BaseVertexLocation = gridVertexCount;
+
+	geo->DrawArgs["box"] = submesh;
 	mGeometries["landGeo"] = std::move(geo);
 }
+
 
 void LitWavesApp::BuildWavesGeometryBuffers()
 {
@@ -573,7 +632,7 @@ void LitWavesApp::BuildWavesGeometryBuffers()
 	mGeometries["waterGeo"] = std::move(geo);
 }
 
-void LitWavesApp::BuildPSOs()
+D3D12_GRAPHICS_PIPELINE_STATE_DESC LitWavesApp::BuildOpaquePSO()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
 
@@ -606,6 +665,39 @@ void LitWavesApp::BuildPSOs()
 	opaquePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
+	return opaquePsoDesc;
+}
+
+void LitWavesApp::BuildBlendedPSO(D3D12_GRAPHICS_PIPELINE_STATE_DESC& prevPSO)
+{
+	D3D12_BLEND_DESC blendDesc = {};
+	blendDesc.AlphaToCoverageEnable = false;
+	blendDesc.IndependentBlendEnable = false;
+
+	D3D12_RENDER_TARGET_BLEND_DESC rtbDesc = {};
+	rtbDesc.BlendEnable = true;
+	rtbDesc.LogicOpEnable = false;
+	rtbDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rtbDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rtbDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rtbDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	rtbDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	rtbDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rtbDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rtbDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	prevPSO.BlendState.RenderTarget[0] = rtbDesc;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&prevPSO, IID_PPV_ARGS(&mPSOs["transparent"])));
+}
+
+void LitWavesApp::BuildPSOs()
+{
+	auto pso = BuildOpaquePSO();
+	BuildBlendedPSO(pso);
+	pso.PS = {
+		reinterpret_cast<BYTE*>(mShaders["alphaTestedPS"]->GetBufferPointer()),
+		mShaders["alphaTestedPS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&mPSOs["alphaTested"])));
 }
 
 void LitWavesApp::BuildFrameResources()
@@ -630,13 +722,23 @@ void LitWavesApp::BuildMaterials()
 	auto water = std::make_unique<Material>(mNumFrameResources);
 	water->Name = "water";
 	water->MatCBIndex = 1;
-	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.4f);
 	water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	water->Roughness = 0.0f;
 	water->DiffuseSrvHeapIndex = 1;
 
+	auto wirefence = std::make_unique<Material>(mNumFrameResources);
+	wirefence->Name = "wirefence";
+	wirefence->MatCBIndex = 2;
+	wirefence->DiffuseSrvHeapIndex = 2;
+	wirefence->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	wirefence->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	wirefence->Roughness = 0.25f;
+
+
 	mMaterials["grass"] = std::move(grass);
 	mMaterials["water"] = std::move(water);
+	mMaterials["wirefence"] = std::move(wirefence);
 }
 
 void LitWavesApp::BuildRenderItems()
@@ -653,7 +755,7 @@ void LitWavesApp::BuildRenderItems()
 	wavesRitem->BaseVertexLocation = wavesRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 	mWavesRItem = wavesRitem.get();
 
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(wavesRitem.get());
+	mRitemLayer[(int)RenderLayer::Blended].push_back(wavesRitem.get());
 
 	auto gridRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
@@ -667,8 +769,21 @@ void LitWavesApp::BuildRenderItems()
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
+
+	auto fenceRItem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&fenceRItem->World, XMMatrixTranslation(-2.0f, 1.0f, 0.0f));
+	fenceRItem->ObjCBIndex = 2;
+	fenceRItem->Mat = mMaterials["wirefence"].get();
+	fenceRItem->Geo = mGeometries["landGeo"].get();
+	fenceRItem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	fenceRItem->IndexCount = fenceRItem->Geo->DrawArgs["box"].IndexCount;
+	fenceRItem->StartIndexLocation = fenceRItem->Geo->DrawArgs["box"].StartIndexLocation;
+	fenceRItem->BaseVertexLocation = fenceRItem->Geo->DrawArgs["box"].BaseVertexLocation;
+
+	mRitemLayer[(int)RenderLayer::AlphaTested].push_back(fenceRItem.get());
 	mAllRItems.push_back(std::move(wavesRitem));
 	mAllRItems.push_back(std::move(gridRitem));
+	mAllRItems.push_back(std::move(fenceRItem));
 }
 
 void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const std::vector<RenderItem*>& rItems)
