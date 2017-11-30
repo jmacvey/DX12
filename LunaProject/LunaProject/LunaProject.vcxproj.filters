@@ -213,6 +213,9 @@
     <ClInclude Include="CrateApp.h">
       <Filter>Header Files\Apps</Filter>
     </ClInclude>
+    <ClInclude Include="StencilApp.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -278,7 +281,10 @@
     <ClCompile Include="CrateApp.cpp">
       <Filter>Source Files\Apps</Filter>
     </ClCompile>
-    <ClCompile Include="LitWavesDriver.cpp">
+    <ClCompile Include="StencilApp.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="StencilDriver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
