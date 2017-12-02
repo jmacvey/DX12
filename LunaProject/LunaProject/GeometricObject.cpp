@@ -9,12 +9,12 @@ GeometricObject::GeometricObject(const std::string& name) : mName(name)
 
 void GeometricObject::AddObject(GeometryGenerator::MeshData& meshData)
 {
-	TryInitializeGeometry();
 	AddObject(meshData.Vertices, meshData.GetIndices16());
 }
 
 void GeometricObject::AddObject(const std::vector<GeometryGenerator::Vertex>& vertexList, const std::vector<uint16_t>& indexList)
 {
+	TryInitializeGeometry();
 	SubmeshGeometry submesh;
 	submesh.IndexCount = (UINT)indexList.size();
 	submesh.StartIndexLocation = (UINT)mIndices.size();
