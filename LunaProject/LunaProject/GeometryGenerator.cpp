@@ -369,28 +369,61 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 	return sphere;
 }
 
-GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount) {
+GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount, bool withTopBottom) {
 
-	MeshData cylinder;
-	const float heightOffset = -0.5f * height;
-	const float dh = height / stackCount;
-	const float dr = (topRadius - bottomRadius) / stackCount;
-	const float dTheta = XM_2PI / sliceCount;
+	MeshData meshData;
 
-	const uint32 ringCount = stackCount + 1;
-	float r, x, z, y, s, c;
-	for (uint32 i = 0; i < ringCount; ++i) {
-		r = dr * i + bottomRadius;
-		y = dh * i + heightOffset;
-		for (uint32 j = 0; j <= sliceCount; ++j) {
-			c = cosf(dTheta * j);
-			s = sinf(dTheta * j);
-			x = r*c;
-			z = r*s;
+	//
+	// Build Stacks.
+	// 
+
+	float stackHeight = height / stackCount;
+
+	// Amount to increment radius as we move up each stack level from bottom to top.
+	float radiusStep = (topRadius - bottomRadius) / stackCount;
+
+	uint32 ringCount = stackCount + 1;
+
+	// Compute vertices for each stack ring starting at the bottom and moving up.
+	for (uint32 i = 0; i < ringCount; ++i)
+	{
+		float y = -0.5f*height + i*stackHeight;
+		float r = bottomRadius + i*radiusStep;
+
+		// vertices of ring
+		float dTheta = 2.0f*XM_PI / sliceCount;
+		for (uint32 j = 0; j <= sliceCount; ++j)
+		{
 			Vertex vertex;
-			vertex.Position = XMFLOAT3(x, y, z);
+
+			float c = cosf(j*dTheta);
+			float s = sinf(j*dTheta);
+
+			vertex.Position = XMFLOAT3(r*c, y, r*s);
+
 			vertex.TexC.x = (float)j / sliceCount;
-			vertex.TexC.y = (float)i / stackCount;
+			vertex.TexC.y = 1.0f - (float)i / stackCount;
+
+			// Cylinder can be parameterized as follows, where we introduce v
+			// parameter that goes in the same direction as the v tex-coord
+			// so that the bitangent goes in the same direction as the v tex-coord.
+			//   Let r0 be the bottom radius and let r1 be the top radius.
+			//   y(v) = h - hv for v in [0,1].
+			//   r(v) = r1 + (r0-r1)v
+			//
+			//   x(t, v) = r(v)*cos(t)
+			//   y(t, v) = h - hv
+			//   z(t, v) = r(v)*sin(t)
+			// 
+			//  dx/dt = -r(v)*sin(t)
+			//  dy/dt = 0
+			//  dz/dt = +r(v)*cos(t)
+			//
+			//  dx/dv = (r0-r1)*cos(t)
+			//  dy/dv = -h
+			//  dz/dv = (r0-r1)*sin(t)
+
+			// This is unit length.
 			vertex.TangentU = XMFLOAT3(-s, 0.0f, c);
 
 			float dr = bottomRadius - topRadius;
@@ -400,30 +433,35 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius
 			XMVECTOR B = XMLoadFloat3(&bitangent);
 			XMVECTOR N = XMVector3Normalize(XMVector3Cross(T, B));
 			XMStoreFloat3(&vertex.Normal, N);
-			cylinder.Vertices.emplace_back(vertex);
-		}
 
-		uint32 ringVertexCount = sliceCount + 1;
-		for (uint32 i = 0; i < ringCount; ++i) {
-			for (uint32 j = 0; j < sliceCount; ++j) {
-				uint32 bottomLeft = i*ringVertexCount + j;
-				uint32 topLeft = (i + 1)*ringVertexCount + j;
-				cylinder.Indices32.emplace_back(bottomLeft);
-				cylinder.Indices32.emplace_back(topLeft);
-				cylinder.Indices32.emplace_back(topLeft + 1);
-
-				cylinder.Indices32.emplace_back(bottomLeft);
-				cylinder.Indices32.emplace_back(topLeft + 1);
-				cylinder.Indices32.emplace_back(bottomLeft + 1);
-			}
+			meshData.Vertices.push_back(vertex);
 		}
 	}
 
-	BuildCylinderTopCap(bottomRadius, topRadius, height, sliceCount, stackCount, cylinder);
-	BuildCylinderBottomCap(bottomRadius, topRadius, height, sliceCount, stackCount, cylinder);
+	// Add one because we duplicate the first and last vertex per ring
+	// since the texture coordinates are different.
+	uint32 ringVertexCount = sliceCount + 1;
 
+	// Compute indices for each stack.
+	for (uint32 i = 0; i < stackCount; ++i)
+	{
+		for (uint32 j = 0; j < sliceCount; ++j)
+		{
+			meshData.Indices32.push_back(i*ringVertexCount + j);
+			meshData.Indices32.push_back((i + 1)*ringVertexCount + j);
+			meshData.Indices32.push_back((i + 1)*ringVertexCount + j + 1);
 
-	return cylinder;
+			meshData.Indices32.push_back(i*ringVertexCount + j);
+			meshData.Indices32.push_back((i + 1)*ringVertexCount + j + 1);
+			meshData.Indices32.push_back(i*ringVertexCount + j + 1);
+		}
+	}
+
+	if (withTopBottom) {
+		BuildCylinderTopCap(bottomRadius, topRadius, height, sliceCount, stackCount, meshData);
+		BuildCylinderBottomCap(bottomRadius, topRadius, height, sliceCount, stackCount, meshData);
+	}
+	return meshData;
 }
 
 GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float depth, uint32 m, uint32 n) {

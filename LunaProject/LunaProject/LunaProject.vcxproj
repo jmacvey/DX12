@@ -210,6 +210,7 @@
     <ClCompile Include="LandAndWaves.cpp" />
     <ClCompile Include="LitColumns.cpp" />
     <ClCompile Include="LitWaves.cpp" />
+    <ClCompile Include="LitWavesDriver.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="Pyramid.cpp" />
     <ClCompile Include="ShapesApp.cpp" />
@@ -221,7 +222,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="StencilApp.cpp" />
-    <ClCompile Include="StencilDriver.cpp" />
     <ClCompile Include="Waves.cpp" />
   </ItemGroup>
   <ItemGroup>

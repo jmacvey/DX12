@@ -34,10 +34,12 @@ private:
 
 	void OnKeyboardInput(const GameTimer& gt);
 	void UpdateCamera(const GameTimer& gt);
+	void UpdateDepthVisualizers(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
 	void UpdateWaves(const GameTimer& gt);
+	void UpdateLightning(const GameTimer& gt);
 	void AnimateMaterials(const GameTimer& gt);
 
 	void BuildTextures();
@@ -49,13 +51,15 @@ private:
 	void BuildShadersAndInputLayout();
 	void BuildLandGeometry();
 	void BuildWavesGeometryBuffers();
+	void BuildDepthVisualizationQuads();
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC BuildOpaquePSO();
-	void BuildBlendedPSO(D3D12_GRAPHICS_PIPELINE_STATE_DESC& prevPSO);
+	void BuildBlendedPSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& prevPSO);
+	void BuildDepthVisualizationPSOs(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc);
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
 	void BuildRenderItems();
-	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& rItems);
+	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& rItems, bool isVisualizers = false);
 
 	float GetHillsHeight(float x, float z) const;
 	XMFLOAT3 GetHillsNormal(float x, float z) const;
@@ -80,6 +84,8 @@ private:
 
 	RenderItem* mWavesRItem = nullptr;
 
+	UINT mCurrentLightningFrameIndex = 1;
+
 	std::vector<std::unique_ptr<RenderItem>> mAllRItems;
 	std::vector<RenderItem*>  mRitemLayer[(int)RenderLayer::Count];
 
@@ -91,12 +97,23 @@ private:
 	XMFLOAT4X4 mView = MathHelper::Identity4x4();
 	XMFLOAT4X4 mProj = MathHelper::Identity4x4();
 
-	float mTheta = 1.5f*XM_PI;
+	float mTheta = -XM_PIDIV2;
 	float mPhi = XM_PIDIV2 - 0.1f;
 	float mRadius = 50.0f;
 
 	float mSunTheta = 1.25f*XM_PI;
 	float mSunPhi = XM_PIDIV4;
+
+	bool mDepthVisualizerEnabled = false;
+	bool mBlendVisualizerEnabled = false;
+
+	std::array<XMVECTORF32, 6> mDepthColors = {
+		DirectX::Colors::White,		// 0
+		DirectX::Colors::Blue,		// 1
+		DirectX::Colors::Green,		// 2
+		DirectX::Colors::Yellow,	// 3
+		DirectX::Colors::Red		// 4
+	};
 
 	POINT mLastMousePos;
 };

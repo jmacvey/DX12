@@ -31,6 +31,7 @@ cbuffer cbPerObject : register(b0)
 {
 	float4x4 gWorld;
 	float4x4 gTexTransform;
+	float4 gColor;
 };
 
 cbuffer cbMaterial : register(b1) // materials
@@ -108,6 +109,11 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
+
+#ifdef COLOR
+	return gColor;
+#endif
+
 	// Interpolating normal can unnormalize it, so renormalize it.
 	pin.NormalW = normalize(pin.NormalW);
 

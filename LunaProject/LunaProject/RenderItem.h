@@ -44,6 +44,7 @@ namespace LightingDemo {
 		UINT IndexCount = 0;
 		UINT StartIndexLocation = 0;
 		int BaseVertexLocation = 0;
+		XMFLOAT4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	};
 
 	enum class RenderLayer : int {
@@ -54,6 +55,8 @@ namespace LightingDemo {
 		Shadow,
 		AlphaTested,
 		Blended,
+		DepthVisualizer,
+		Additive,
 		Count
 	};
 }

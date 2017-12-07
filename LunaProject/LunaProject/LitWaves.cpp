@@ -33,6 +33,7 @@ bool LitWavesApp::Initialize()
 	// handles everything else
 	BuildRootSignature();
 	BuildShadersAndInputLayout();
+	BuildDepthVisualizationQuads();
 	BuildLandGeometry();
 	BuildWavesGeometryBuffers();
 	BuildMaterials();
@@ -76,9 +77,11 @@ void LitWavesApp::Update(const GameTimer & gt)
 	}
 
 	UpdateWaves(gt);
+	UpdateLightning(gt);
 	UpdateObjectCBs(gt);
 	UpdateMaterialCBs(gt);
 	UpdateMainPassCB(gt);
+	UpdateDepthVisualizers(gt);
 }
 
 void LitWavesApp::Draw(const GameTimer & gt)
@@ -91,7 +94,14 @@ void LitWavesApp::Draw(const GameTimer & gt)
 
 	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
 	// Reusing the command list reuses memory.
-	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
+
+	if (mBlendVisualizerEnabled) {
+		ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["blendDepthVisualizer"].Get()));
+	}
+	else {
+		ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
+	}
+
 
 	mCommandList->RSSetViewports(1, &mScreenViewport);
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -117,11 +127,25 @@ void LitWavesApp::Draw(const GameTimer & gt)
 
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
-	mCommandList->SetPipelineState(mPSOs["alphaTested"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
+	if (mBlendVisualizerEnabled) {
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Additive]);
+	}
+	else {
+		mCommandList->SetPipelineState(mPSOs["alphaTested"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
+		mCommandList->SetPipelineState(mPSOs["transparent"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
 
-	mCommandList->SetPipelineState(mPSOs["transparent"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
+		mCommandList->SetPipelineState(mPSOs["additive"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Additive]);
+	}
+
+	if (mDepthVisualizerEnabled) {
+		mCommandList->SetPipelineState(mPSOs["depthVisualizer"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::DepthVisualizer], true);
+	}
 
 	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -211,6 +235,21 @@ void LitWavesApp::OnKeyboardInput(const GameTimer & gt)
 		mSunPhi += 1.0f * dt;
 	}
 
+	if (GetAsyncKeyState('V') & 0x8000) {
+		mDepthVisualizerEnabled = true;
+		mBlendVisualizerEnabled = false;
+	}
+
+	if (GetAsyncKeyState('O') & 0x8000) {
+		mDepthVisualizerEnabled = false;
+		mBlendVisualizerEnabled = false;
+	}
+
+	if (GetAsyncKeyState('B') & 0x8000) {
+		mDepthVisualizerEnabled = false;
+		mBlendVisualizerEnabled = true;
+	}
+
 	mSunPhi = MathHelper::Clamp(mSunPhi, 0.1f, XM_PIDIV2);
 }
 
@@ -230,6 +269,22 @@ void LitWavesApp::UpdateCamera(const GameTimer & gt)
 	XMStoreFloat4x4(&mView, view);
 }
 
+void LitWavesApp::UpdateDepthVisualizers(const GameTimer& gt)
+{
+	for (auto& quad : mRitemLayer[(UINT)RenderLayer::DepthVisualizer]) {
+
+		// rotate the quad to always be aligned with camera
+		auto translationVector = 0.95f*mRadius*XMVector3Normalize(XMLoadFloat3(&mEyePos));
+		XMFLOAT3 T = {};
+		XMStoreFloat3(&T, translationVector);
+		auto quadPosition = XMMatrixScaling(mClientWidth / 2.0f, mClientHeight / 2.0f, 1.0f)*
+			XMMatrixRotationX(XM_PIDIV2 - mPhi)*
+			XMMatrixRotationY(-XM_PIDIV2 - mTheta)*XMMatrixTranslation(T.x, T.y, T.z);
+		XMStoreFloat4x4(&quad->World, quadPosition);
+		quad->NumFramesDirty = mNumFrameResources;
+	}
+}
+
 void LitWavesApp::UpdateObjectCBs(const GameTimer& gt)
 {
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
@@ -242,6 +297,7 @@ void LitWavesApp::UpdateObjectCBs(const GameTimer& gt)
 			ObjectConstants objConstants;
 			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
+			objConstants.Color = rItem->Color;
 			currObjectCB->CopyData(rItem->ObjCBIndex, objConstants);
 			rItem->NumFramesDirty--;
 		}
@@ -345,6 +401,17 @@ void LitWavesApp::UpdateWaves(const GameTimer & gt)
 	mWavesRItem->Geo->VertexBufferGPU = currWavesVB->Resource();
 }
 
+void LitWavesApp::UpdateLightning(const GameTimer& gt)
+{
+	static float t_base = 0.0f;
+	if (gt.TotalTime() - t_base > 0.10f) {
+		t_base += 0.10f;
+		mCurrentLightningFrameIndex = (mCurrentLightningFrameIndex + 1) % 60;
+		mMaterials["bolt"]->DiffuseSrvHeapIndex = mCurrentLightningFrameIndex + 4;
+		mMaterials["bolt"]->NumFramesDirty = 3;
+	}
+}
+
 void LitWavesApp::AnimateMaterials(const GameTimer & gt)
 {
 	auto waterMat = mMaterials["water"].get();
@@ -361,8 +428,9 @@ void LitWavesApp::AnimateMaterials(const GameTimer & gt)
 
 	waterMat->MatTransform(3, 0) = tu;
 	waterMat->MatTransform(3, 1) = tv;
-
 	waterMat->NumFramesDirty = mNumFrameResources;
+
+
 }
 
 void LitWavesApp::BuildTextures()
@@ -383,6 +451,27 @@ void LitWavesApp::BuildTextures()
 	createTex("water", L"Textures//modTextures//water1.dds");
 	createTex("grass", L"Textures//grass.dds");
 	createTex("wireFence", L"Textures/WireFence.dds");
+	createTex("white", L"Textures/white1x1.dds");
+
+	std::wostringstream ws;
+	std::stringstream ss;
+	std::wstring num = L"";
+	std::wstring filePath = L"";
+	std::wstring fileExtension = L".DDS";
+	for (UINT i = 1; i < 61; ++i) {
+		ws << i;
+		ss << i;
+		if (i < 10) {
+			filePath = L"BoltAnim//boltDDSFiles//Bolt00" + std::wstring(ws.str()) + fileExtension;
+			createTex("bolt-" + std::string(ss.str()), filePath);
+		}
+		else {
+			filePath = L"BoltAnim//boltDDSFiles//Bolt0" + std::wstring(ws.str()) + fileExtension;
+			createTex("bolt-" + std::string(ss.str()), filePath);
+		}
+		ws.str(std::wstring());
+		ss.str(std::string());
+	}
 }
 
 void LitWavesApp::BuildDescriptorHeaps()
@@ -414,6 +503,14 @@ void LitWavesApp::BuildTextureDescriptors()
 	buildTextureDescriptor(mTextures["grass"]);
 	buildTextureDescriptor(mTextures["water"]);
 	buildTextureDescriptor(mTextures["wireFence"]);
+	buildTextureDescriptor(mTextures["white"]);
+
+	std::stringstream ss;
+	for (int i = 1; i < 61; ++i) {
+		ss << i;
+		buildTextureDescriptor(mTextures["bolt-" + ss.str()]);
+		ss.str(std::string());
+	}
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> LitWavesApp::GetStaticSamplers()
@@ -479,8 +576,15 @@ void LitWavesApp::BuildShadersAndInputLayout()
 		NULL, NULL
 	};
 
+	const D3D_SHADER_MACRO color[] = {
+		"COLOR", "0",
+		NULL, NULL
+	};
+
+	mShaders["depthVisualizerPS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", color, "PS", "ps_5_0");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", fog, "PS", "ps_5_0");
 	mShaders["alphaTestedPS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", alphaDefines, "PS", "ps_5_0");
+
 
 	mInputLayout =
 	{
@@ -495,15 +599,17 @@ void LitWavesApp::BuildLandGeometry()
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(160.0f, 160.0f, 50, 50);
 	auto box = geoGen.CreateBox(5.0f, 5.0f, 5.0f, 3);
+	auto cylinder = geoGen.CreateCylinder(5.0f, 5.0f, 5.0f, 40, 20, false);
 	//
 	// Extract the vertex elements we are interested and apply the height function to
 	// each vertex.  In addition, color the vertices based on their height so we have
 	// sandy looking beaches, grassy low hills, and snow mountain peaks.
 	//
-	
+
 	auto gridVertexCount = (UINT)grid.Vertices.size();
 	auto boxVertexCount = (UINT)box.Vertices.size();
-	auto totalVertexSize = gridVertexCount + boxVertexCount;
+	auto cylinderVertexCount = (UINT)cylinder.Vertices.size();
+	auto totalVertexSize = gridVertexCount + boxVertexCount + cylinderVertexCount;
 
 	std::vector<Vertex> vertices(totalVertexSize);
 	for (UINT i = 0; i < gridVertexCount; ++i)
@@ -516,29 +622,39 @@ void LitWavesApp::BuildLandGeometry()
 	}
 
 	auto baseVertexCount = 0;
-	for (UINT i = gridVertexCount; i < totalVertexSize; ++i, ++baseVertexCount) {
+	for (UINT i = gridVertexCount; i < gridVertexCount + boxVertexCount; ++i, ++baseVertexCount) {
 		vertices[i].Pos = box.Vertices[baseVertexCount].Position;
 		vertices[i].Normal = box.Vertices[baseVertexCount].Normal;
 		vertices[i].TexC = box.Vertices[baseVertexCount].TexC;
+	}
+
+	baseVertexCount = 0;
+	for (UINT i = gridVertexCount + boxVertexCount; i < totalVertexSize; ++i, ++baseVertexCount) {
+		vertices[i].Pos = cylinder.Vertices[baseVertexCount].Position;
+		vertices[i].Normal = cylinder.Vertices[baseVertexCount].Normal;
+		vertices[i].TexC = cylinder.Vertices[baseVertexCount].TexC;
 	}
 
 	const UINT vbByteSize = totalVertexSize * sizeof(Vertex);
 
 	std::vector<std::uint16_t> gridIndices = grid.GetIndices16();
 	std::vector<std::uint16_t> boxIndices = box.GetIndices16();
+	std::vector<std::uint16_t> cylinderIndices = cylinder.GetIndices16();
 	const UINT gridIndexCount = (UINT)gridIndices.size();
 	const UINT boxIndexCount = (UINT)boxIndices.size();
-	const UINT numIndices = gridIndexCount + boxIndexCount;
+	const UINT cylinderIndexCount = (UINT)cylinderIndices.size();
+	const UINT numIndices = gridIndexCount + boxIndexCount + cylinderIndexCount;
 
-	std::vector<std::uint16_t> allIndices(numIndices);
-	uint16_t currIndex = 0;
+	std::vector<std::uint32_t> allIndices(numIndices);
+	uint32_t currIndex = 0;
 	auto concatIndices = [&](const std::vector<uint16_t>& toConcat) {
-		std::for_each(toConcat.begin(), toConcat.end(), [&](uint16_t toAdd) { allIndices[currIndex++] = toAdd; });
+		std::for_each(toConcat.begin(), toConcat.end(), [&](uint32_t toAdd) { allIndices[currIndex++] = toAdd; });
 	};
 	concatIndices(gridIndices);
 	concatIndices(boxIndices);
+	concatIndices(cylinderIndices);
 
-	const UINT ibByteSize = numIndices * sizeof(std::uint16_t);
+	const UINT ibByteSize = numIndices * sizeof(std::uint32_t);
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "landGeo";
@@ -557,21 +673,25 @@ void LitWavesApp::BuildLandGeometry()
 
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
 
 	SubmeshGeometry submesh;
 	submesh.IndexCount = gridIndexCount;
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
-
 	geo->DrawArgs["grid"] = submesh;
 
 	submesh.IndexCount = boxIndexCount;
 	submesh.StartIndexLocation = gridIndexCount;
 	submesh.BaseVertexLocation = gridVertexCount;
-
 	geo->DrawArgs["box"] = submesh;
+
+	submesh.IndexCount = cylinderIndexCount;
+	submesh.StartIndexLocation = gridIndexCount + boxIndexCount;
+	submesh.BaseVertexLocation = gridVertexCount + boxVertexCount;
+	geo->DrawArgs["cylinder"] = submesh;
+
 	mGeometries["landGeo"] = std::move(geo);
 }
 
@@ -632,6 +752,51 @@ void LitWavesApp::BuildWavesGeometryBuffers()
 	mGeometries["waterGeo"] = std::move(geo);
 }
 
+void LitWavesApp::BuildDepthVisualizationQuads()
+{
+	std::array<Vertex, 4> quadVertices = {
+		Vertex(-0.5f, +0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f), // top left
+		Vertex(+0.5f, +0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f), // top right
+		Vertex(+0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f), // bottom right
+		Vertex(-0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f), // bottom left
+	};
+
+	std::array<std::uint16_t, 6> quadIndices = {
+		0, 1, 2,
+		0, 2, 3,
+	};
+
+	auto vbByteSize = (UINT)quadVertices.size() * sizeof(Vertex);
+	auto ibByteSize = (UINT)quadIndices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "visualizationQuad";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), quadVertices.data(), vbByteSize);
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), quadIndices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(),
+		quadVertices.data(), vbByteSize, geo->VertexBufferUploader);
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(),
+		quadIndices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	SubmeshGeometry quadSubmesh;
+	quadSubmesh.BaseVertexLocation = 0;
+	quadSubmesh.IndexCount = (UINT)quadIndices.size();
+	quadSubmesh.StartIndexLocation = 0;
+	geo->DrawArgs["quad"] = quadSubmesh;
+
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	mGeometries[geo->Name] = std::move(geo);
+}
+
 D3D12_GRAPHICS_PIPELINE_STATE_DESC LitWavesApp::BuildOpaquePSO()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
@@ -664,11 +829,16 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC LitWavesApp::BuildOpaquePSO()
 	opaquePsoDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
 	opaquePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
+	opaquePsoDesc.DepthStencilState.StencilEnable = true;
+
+	// increment the stencil count
+	opaquePsoDesc.DepthStencilState.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	opaquePsoDesc.DepthStencilState.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 	return opaquePsoDesc;
 }
 
-void LitWavesApp::BuildBlendedPSO(D3D12_GRAPHICS_PIPELINE_STATE_DESC& prevPSO)
+void LitWavesApp::BuildBlendedPSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& prevPSO)
 {
 	D3D12_BLEND_DESC blendDesc = {};
 	blendDesc.AlphaToCoverageEnable = false;
@@ -685,19 +855,93 @@ void LitWavesApp::BuildBlendedPSO(D3D12_GRAPHICS_PIPELINE_STATE_DESC& prevPSO)
 	rtbDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	rtbDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
 	rtbDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	prevPSO.BlendState.RenderTarget[0] = rtbDesc;
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&prevPSO, IID_PPV_ARGS(&mPSOs["transparent"])));
+	auto transparentPSO = prevPSO;
+	transparentPSO.BlendState.RenderTarget[0] = rtbDesc;
+	transparentPSO.DepthStencilState.StencilEnable = true;
+	transparentPSO.DepthStencilState.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	transparentPSO.DepthStencilState.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentPSO, IID_PPV_ARGS(&mPSOs["transparent"])));
+
+	auto additive = transparentPSO;
+	additive.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	additive.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&additive, IID_PPV_ARGS(&mPSOs["additive"])));
+
+	auto depthVisualizer = additive;
+	depthVisualizer.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	depthVisualizer.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	depthVisualizer.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	depthVisualizer.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	depthVisualizer.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+	depthVisualizer.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+	depthVisualizer.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+	depthVisualizer.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+
+	depthVisualizer.PS = {
+		reinterpret_cast<BYTE*>(mShaders["depthVisualizerPS"]->GetBufferPointer()),
+		(UINT)mShaders["depthVisualizerPS"]->GetBufferSize()
+	};
+
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&depthVisualizer, IID_PPV_ARGS(&mPSOs["blendDepthVisualizer"])));
+}
+
+void LitWavesApp::BuildDepthVisualizationPSOs(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
+{
+	D3D12_DEPTH_STENCIL_DESC markerDSS;
+
+	markerDSS.DepthEnable = true;
+	markerDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	markerDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	markerDSS.StencilEnable = true;
+	markerDSS.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+	markerDSS.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+	markerDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	markerDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	markerDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	markerDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	markerDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	markerDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	markerDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	markerDSS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	auto markerPSO = desc;
+	markerPSO.DepthStencilState = markerDSS;
+
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&markerPSO, IID_PPV_ARGS(&mPSOs["stencilMarker"])));
+
+	auto depthVisualizerDSS = markerDSS;
+	depthVisualizerDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	depthVisualizerDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	depthVisualizerDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	depthVisualizerDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	
+	auto depthVisualizerPSO = desc;
+	depthVisualizerPSO.DepthStencilState = depthVisualizerDSS;
+	depthVisualizerPSO.PS = {
+		reinterpret_cast<BYTE*>(mShaders["depthVisualizerPS"]->GetBufferPointer()),
+		mShaders["depthVisualizerPS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&depthVisualizerPSO, IID_PPV_ARGS(&mPSOs["depthVisualizer"])));
 }
 
 void LitWavesApp::BuildPSOs()
 {
 	auto pso = BuildOpaquePSO();
 	BuildBlendedPSO(pso);
-	pso.PS = {
+
+	auto wireframe = pso;
+	wireframe.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	wireframe.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&wireframe, IID_PPV_ARGS(&mPSOs["wireframe"])));
+	auto alphaTestedPSO = pso;
+	alphaTestedPSO.PS = {
 		reinterpret_cast<BYTE*>(mShaders["alphaTestedPS"]->GetBufferPointer()),
 		mShaders["alphaTestedPS"]->GetBufferSize()
 	};
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&mPSOs["alphaTested"])));
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&alphaTestedPSO, IID_PPV_ARGS(&mPSOs["alphaTested"])));
+
+	BuildDepthVisualizationPSOs(pso);
 }
 
 void LitWavesApp::BuildFrameResources()
@@ -735,14 +979,32 @@ void LitWavesApp::BuildMaterials()
 	wirefence->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	wirefence->Roughness = 0.25f;
 
+	auto white = std::make_unique<Material>(mNumFrameResources);
+	white->Name = "white";
+	white->MatCBIndex = 3;
+	white->DiffuseSrvHeapIndex = 3;
+	white->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	white->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	white->Roughness = 0.01f;
+
+	auto bolt = std::make_unique<Material>(mNumFrameResources);
+	bolt->Name = "bolt";
+	bolt->MatCBIndex = 4;
+	bolt->DiffuseSrvHeapIndex = 5;
+	bolt->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
+	bolt->FresnelR0 = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	bolt->Roughness = 0.01f;
 
 	mMaterials["grass"] = std::move(grass);
 	mMaterials["water"] = std::move(water);
 	mMaterials["wirefence"] = std::move(wirefence);
+	mMaterials["white"] = std::move(white);
+	mMaterials["bolt"] = std::move(bolt);
 }
 
 void LitWavesApp::BuildRenderItems()
 {
+	XMFLOAT4 color = XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f);
 	auto wavesRitem = std::make_unique<RenderItem>();
 	XMStoreFloat4x4(&wavesRitem->TexTransform, XMMatrixScaling(5.0f, 5.0f, 1.0f));
 	wavesRitem->World = MathHelper::Identity4x4();
@@ -753,6 +1015,7 @@ void LitWavesApp::BuildRenderItems()
 	wavesRitem->IndexCount = wavesRitem->Geo->DrawArgs["grid"].IndexCount;
 	wavesRitem->StartIndexLocation = wavesRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	wavesRitem->BaseVertexLocation = wavesRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+	wavesRitem->Color = color;
 	mWavesRItem = wavesRitem.get();
 
 	mRitemLayer[(int)RenderLayer::Blended].push_back(wavesRitem.get());
@@ -767,7 +1030,7 @@ void LitWavesApp::BuildRenderItems()
 	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
-
+	gridRitem->Color = color;
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
 
 	auto fenceRItem = std::make_unique<RenderItem>();
@@ -779,14 +1042,46 @@ void LitWavesApp::BuildRenderItems()
 	fenceRItem->IndexCount = fenceRItem->Geo->DrawArgs["box"].IndexCount;
 	fenceRItem->StartIndexLocation = fenceRItem->Geo->DrawArgs["box"].StartIndexLocation;
 	fenceRItem->BaseVertexLocation = fenceRItem->Geo->DrawArgs["box"].BaseVertexLocation;
-
+	fenceRItem->Color = color;
 	mRitemLayer[(int)RenderLayer::AlphaTested].push_back(fenceRItem.get());
+
+	auto cylinderRItem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&cylinderRItem->World, XMMatrixTranslation(-2.0f, 2.0f, 0.0f));
+	cylinderRItem->ObjCBIndex = 3;
+	cylinderRItem->Mat = mMaterials["bolt"].get();
+	cylinderRItem->Geo = mGeometries["landGeo"].get();
+	cylinderRItem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	cylinderRItem->IndexCount = cylinderRItem->Geo->DrawArgs["cylinder"].IndexCount;
+	cylinderRItem->StartIndexLocation= cylinderRItem->Geo->DrawArgs["cylinder"].StartIndexLocation;
+	cylinderRItem->BaseVertexLocation = cylinderRItem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
+	cylinderRItem->Color = color;
+	mRitemLayer[(int)RenderLayer::Additive].emplace_back(cylinderRItem.get());
+
 	mAllRItems.push_back(std::move(wavesRitem));
 	mAllRItems.push_back(std::move(gridRitem));
 	mAllRItems.push_back(std::move(fenceRItem));
+	mAllRItems.push_back(std::move(cylinderRItem));
+
+	UINT numColors = (UINT)mDepthColors.size();
+
+	UINT i = 0;
+	for (auto& color : mDepthColors) {
+		auto depthQuadRItem = std::make_unique<RenderItem>();
+		depthQuadRItem->ObjCBIndex = 4 + i;
+		depthQuadRItem->Mat = mMaterials["white"].get();
+		depthQuadRItem->Geo = mGeometries["visualizationQuad"].get();
+		depthQuadRItem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		depthQuadRItem->IndexCount = depthQuadRItem->Geo->DrawArgs["quad"].IndexCount;
+		depthQuadRItem->BaseVertexLocation = depthQuadRItem->Geo->DrawArgs["quad"].BaseVertexLocation;
+		depthQuadRItem->StartIndexLocation = depthQuadRItem->Geo->DrawArgs["quad"].StartIndexLocation;
+		XMStoreFloat4(&depthQuadRItem->Color, color);
+		mRitemLayer[(int)RenderLayer::DepthVisualizer].push_back(depthQuadRItem.get());
+		mAllRItems.push_back(std::move(depthQuadRItem));
+		++i;
+	}
 }
 
-void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const std::vector<RenderItem*>& rItems)
+void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const std::vector<RenderItem*>& rItems, bool isVisualizers)
 {
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 	UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
@@ -798,10 +1093,13 @@ void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const std
 	for (size_t i = 0; i < rItems.size(); ++i)
 	{
 		auto ri = rItems[i];
-
 		cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
 		cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 		cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
+
+		if (isVisualizers) {
+			cmdList->OMSetStencilRef(i);
+		}
 
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex*objCBByteSize;
 		D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() + ri->Mat->MatCBIndex*matCBByteSize;
@@ -817,6 +1115,8 @@ void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const std
 
 		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
+
+	cmdList->OMSetStencilRef(0);
 }
 
 float LitWavesApp::GetHillsHeight(float x, float z) const

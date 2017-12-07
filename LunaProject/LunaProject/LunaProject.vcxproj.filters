@@ -284,7 +284,7 @@
     <ClCompile Include="StencilApp.cpp">
       <Filter>Source Files\Apps</Filter>
     </ClCompile>
-    <ClCompile Include="StencilDriver.cpp">
+    <ClCompile Include="LitWavesDriver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

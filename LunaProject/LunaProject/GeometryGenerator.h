@@ -57,7 +57,7 @@ public:
 
 	MeshData CreateGeosphere(float radius, uint32 numSubdivisions);
 
-	MeshData CreateCylinder(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount);
+	MeshData CreateCylinder(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount, bool withTopBottom = true);
 
 	MeshData CreateGrid(float width, float depth, uint32 m, uint32 n);
 
