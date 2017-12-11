@@ -56,6 +56,7 @@ namespace LightingDemo {
 		AlphaTested,
 		Blended,
 		DepthVisualizer,
+		AlphaTestedTreeSprites,
 		Additive,
 		Count
 	};

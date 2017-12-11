@@ -52,9 +52,11 @@ private:
 	void BuildLandGeometry();
 	void BuildWavesGeometryBuffers();
 	void BuildDepthVisualizationQuads();
+	void BuildTreeSpriteGeometry();
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC BuildOpaquePSO();
 	void BuildBlendedPSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& prevPSO);
 	void BuildDepthVisualizationPSOs(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc);
+	void BuildTreeArrayPSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc);
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -81,6 +83,7 @@ private:
 	std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mTreeInputLayout;
 
 	RenderItem* mWavesRItem = nullptr;
 

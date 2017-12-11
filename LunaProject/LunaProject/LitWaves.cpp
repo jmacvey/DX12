@@ -35,6 +35,7 @@ bool LitWavesApp::Initialize()
 	BuildShadersAndInputLayout();
 	BuildDepthVisualizationQuads();
 	BuildLandGeometry();
+	BuildTreeSpriteGeometry();
 	BuildWavesGeometryBuffers();
 	BuildMaterials();
 	BuildRenderItems();
@@ -124,6 +125,11 @@ void LitWavesApp::Draw(const GameTimer & gt)
 
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	
+	auto srvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mSrvHeap->GetGPUDescriptorHandleForHeapStart());
+	srvHandle.Offset(64, mCbvSrvDescriptorSize);
+
+	mCommandList->SetGraphicsRootDescriptorTable(4, srvHandle);
 
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 
@@ -135,11 +141,16 @@ void LitWavesApp::Draw(const GameTimer & gt)
 	else {
 		mCommandList->SetPipelineState(mPSOs["alphaTested"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
+
 		mCommandList->SetPipelineState(mPSOs["transparent"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
 
 		mCommandList->SetPipelineState(mPSOs["additive"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Additive]);
+
+		mCommandList->SetPipelineState(mPSOs["treeArray"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTestedTreeSprites]);
+
 	}
 
 	if (mDepthVisualizerEnabled) {
@@ -407,7 +418,7 @@ void LitWavesApp::UpdateLightning(const GameTimer& gt)
 	if (gt.TotalTime() - t_base > 0.10f) {
 		t_base += 0.10f;
 		mCurrentLightningFrameIndex = (mCurrentLightningFrameIndex + 1) % 60;
-		mMaterials["bolt"]->DiffuseSrvHeapIndex = mCurrentLightningFrameIndex + 4;
+		mMaterials["bolt"]->DiffuseSrvHeapIndex = mCurrentLightningFrameIndex + 5;
 		mMaterials["bolt"]->NumFramesDirty = 3;
 	}
 }
@@ -452,6 +463,7 @@ void LitWavesApp::BuildTextures()
 	createTex("grass", L"Textures//grass.dds");
 	createTex("wireFence", L"Textures/WireFence.dds");
 	createTex("white", L"Textures/white1x1.dds");
+	createTex("treeArray", L"Textures//trees//treeArray.dds");
 
 	std::wostringstream ws;
 	std::stringstream ss;
@@ -511,6 +523,20 @@ void LitWavesApp::BuildTextureDescriptors()
 		buildTextureDescriptor(mTextures["bolt-" + ss.str()]);
 		ss.str(std::string());
 	}
+
+	auto buildTexture2DArrayDescriptor = [&](const std::unique_ptr<Texture>& tex) {
+		auto resource = tex->Resource;
+		desc.Texture2DArray.ArraySize = resource->GetDesc().DepthOrArraySize;
+		desc.Texture2DArray.MostDetailedMip = 0;
+		desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+		desc.Format = resource->GetDesc().Format;
+		desc.Texture2DArray.MipLevels = resource->GetDesc().MipLevels;
+		desc.Texture2DArray.ResourceMinLODClamp = 0.0f;
+		md3dDevice->CreateShaderResourceView(resource.Get(), &desc, handle);
+		handle.Offset(1, mCbvSrvDescriptorSize);
+	};
+
+	buildTexture2DArrayDescriptor(mTextures["treeArray"]);
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> LitWavesApp::GetStaticSamplers()
@@ -530,7 +556,7 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 1> LitWavesApp::GetStaticSamplers(
 
 void LitWavesApp::BuildRootSignature()
 {
-	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+	CD3DX12_ROOT_PARAMETER slotRootParameter[5];
 
 
 	slotRootParameter[0].InitAsConstantBufferView(0); // object constants
@@ -540,9 +566,14 @@ void LitWavesApp::BuildRootSignature()
 	auto srvTable0 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // textures
 	slotRootParameter[3].InitAsDescriptorTable(1, &srvTable0, D3D12_SHADER_VISIBILITY_PIXEL);
 
+	auto srvTable1 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+	slotRootParameter[4].InitAsDescriptorTable(1, &srvTable1,
+		D3D12_SHADER_VISIBILITY_ALL
+	);
+
 	auto staticSamplers = GetStaticSamplers();
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(),
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(5, slotRootParameter, (UINT)staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
@@ -563,8 +594,16 @@ void LitWavesApp::BuildRootSignature()
 
 void LitWavesApp::BuildShadersAndInputLayout()
 {
-	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", nullptr, "VS", "vs_5_0");
+	const D3D_SHADER_MACRO arrayDraw[] = {
+		"FOG", "0",
+		"ARRAY_DRAW", "1",
+		"ALPHA_TEST", "1",
+		NULL, NULL
+	};
 
+	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", nullptr, "VS", "vs_5_0");
+	mShaders["arrayDrawVS"] = d3dUtil::CompileShader(L"Shaders\\TreeGeometry.hlsl", arrayDraw, "GeoVS", "vs_5_0");
+	mShaders["arrayDrawGS"] = d3dUtil::CompileShader(L"Shaders\\TreeGeometry.hlsl", arrayDraw, "GeoGS", "gs_5_0");
 	const D3D_SHADER_MACRO alphaDefines[] = {
 		"FOG", "0",
 		"ALPHA_TEST", "1",
@@ -584,13 +623,18 @@ void LitWavesApp::BuildShadersAndInputLayout()
 	mShaders["depthVisualizerPS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", color, "PS", "ps_5_0");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", fog, "PS", "ps_5_0");
 	mShaders["alphaTestedPS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", alphaDefines, "PS", "ps_5_0");
-
+	mShaders["arrayDrawPS"] = d3dUtil::CompileShader(L"Shaders\\TreeGeometry.hlsl", arrayDraw, "GeoPS", "ps_5_0");
 
 	mInputLayout =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	mTreeInputLayout = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
 	};
 }
 
@@ -797,6 +841,69 @@ void LitWavesApp::BuildDepthVisualizationQuads()
 	mGeometries[geo->Name] = std::move(geo);
 }
 
+void LitWavesApp::BuildTreeSpriteGeometry()
+{
+	struct TreeSpriteVertex
+	{
+		XMFLOAT3 Pos;
+		XMFLOAT2 Size;
+	};
+
+	static const int treeCount = 16;
+	std::array<TreeSpriteVertex, 16> vertices;
+
+	int i = 0;
+	while (i < treeCount) {
+		float x = MathHelper::RandF(-45.0f, 45.0f);
+		float z = MathHelper::RandF(-45.0f, 45.0f);
+		float y = GetHillsHeight(x, z);
+		if (y > 0) {
+			y += 8.0f;
+			vertices[i].Pos = XMFLOAT3(x, y, z);
+			vertices[i].Size = XMFLOAT2(20.0f, 20.0f);
+			++i;
+		}
+	}
+
+	std::array<std::uint16_t, 16> indices =
+	{
+		0, 1, 2, 3, 4, 5, 6, 7,
+		8, 9, 10, 11, 12, 13, 14, 15
+	};
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(TreeSpriteVertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "treeSpritesGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(TreeSpriteVertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	geo->DrawArgs["points"] = submesh;
+
+	mGeometries["treeSpritesGeo"] = std::move(geo);
+}
+
 D3D12_GRAPHICS_PIPELINE_STATE_DESC LitWavesApp::BuildOpaquePSO()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
@@ -915,7 +1022,7 @@ void LitWavesApp::BuildDepthVisualizationPSOs(const D3D12_GRAPHICS_PIPELINE_STAT
 	depthVisualizerDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	depthVisualizerDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
 	depthVisualizerDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-	
+
 	auto depthVisualizerPSO = desc;
 	depthVisualizerPSO.DepthStencilState = depthVisualizerDSS;
 	depthVisualizerPSO.PS = {
@@ -925,10 +1032,41 @@ void LitWavesApp::BuildDepthVisualizationPSOs(const D3D12_GRAPHICS_PIPELINE_STAT
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&depthVisualizerPSO, IID_PPV_ARGS(&mPSOs["depthVisualizer"])));
 }
 
+void LitWavesApp::BuildTreeArrayPSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC & desc)
+{
+	auto treeArrayPSO = desc;
+	treeArrayPSO.VS = {
+		reinterpret_cast<BYTE*>(mShaders["arrayDrawVS"]->GetBufferPointer()),
+		(UINT)mShaders["arrayDrawVS"]->GetBufferSize()
+	};
+
+	treeArrayPSO.GS = {
+		reinterpret_cast<BYTE*>(mShaders["arrayDrawGS"]->GetBufferPointer()),
+		(UINT)mShaders["arrayDrawGS"]->GetBufferSize()
+	};
+
+	treeArrayPSO.PS = {
+		reinterpret_cast<BYTE*>(mShaders["arrayDrawPS"]->GetBufferPointer()),
+		(UINT)mShaders["arrayDrawPS"]->GetBufferSize()
+	};
+
+	treeArrayPSO.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+	treeArrayPSO.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	treeArrayPSO.InputLayout = {
+		mTreeInputLayout.data(),
+		(UINT)mTreeInputLayout.size()
+	};
+
+	treeArrayPSO.BlendState.AlphaToCoverageEnable = true;
+
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&treeArrayPSO, IID_PPV_ARGS(&mPSOs["treeArray"])));
+}
+
 void LitWavesApp::BuildPSOs()
 {
 	auto pso = BuildOpaquePSO();
 	BuildBlendedPSO(pso);
+	BuildTreeArrayPSO(pso);
 
 	auto wireframe = pso;
 	wireframe.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
@@ -966,7 +1104,7 @@ void LitWavesApp::BuildMaterials()
 	auto water = std::make_unique<Material>(mNumFrameResources);
 	water->Name = "water";
 	water->MatCBIndex = 1;
-	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.4f);
+	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
 	water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	water->Roughness = 0.0f;
 	water->DiffuseSrvHeapIndex = 1;
@@ -987,9 +1125,17 @@ void LitWavesApp::BuildMaterials()
 	white->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	white->Roughness = 0.01f;
 
+	auto treeSprites = std::make_unique<Material>(mNumFrameResources);
+	treeSprites->Name = "treeSprites";
+	treeSprites->MatCBIndex = 4;
+	treeSprites->DiffuseSrvHeapIndex = 4;
+	treeSprites->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	treeSprites->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	treeSprites->Roughness = 0.125f;
+
 	auto bolt = std::make_unique<Material>(mNumFrameResources);
 	bolt->Name = "bolt";
-	bolt->MatCBIndex = 4;
+	bolt->MatCBIndex = 5;
 	bolt->DiffuseSrvHeapIndex = 5;
 	bolt->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
 	bolt->FresnelR0 = XMFLOAT3(1.0f, 1.0f, 1.0f);
@@ -1000,6 +1146,7 @@ void LitWavesApp::BuildMaterials()
 	mMaterials["wirefence"] = std::move(wirefence);
 	mMaterials["white"] = std::move(white);
 	mMaterials["bolt"] = std::move(bolt);
+	mMaterials["treeSprites"] = std::move(treeSprites);
 }
 
 void LitWavesApp::BuildRenderItems()
@@ -1052,22 +1199,35 @@ void LitWavesApp::BuildRenderItems()
 	cylinderRItem->Geo = mGeometries["landGeo"].get();
 	cylinderRItem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	cylinderRItem->IndexCount = cylinderRItem->Geo->DrawArgs["cylinder"].IndexCount;
-	cylinderRItem->StartIndexLocation= cylinderRItem->Geo->DrawArgs["cylinder"].StartIndexLocation;
+	cylinderRItem->StartIndexLocation = cylinderRItem->Geo->DrawArgs["cylinder"].StartIndexLocation;
 	cylinderRItem->BaseVertexLocation = cylinderRItem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
 	cylinderRItem->Color = color;
 	mRitemLayer[(int)RenderLayer::Additive].emplace_back(cylinderRItem.get());
+
+	auto treeSpritesRitem = std::make_unique<RenderItem>();
+	treeSpritesRitem->World = MathHelper::Identity4x4();
+	treeSpritesRitem->ObjCBIndex = 4;
+	treeSpritesRitem->Mat = mMaterials["treeSprites"].get();
+	treeSpritesRitem->Geo = mGeometries["treeSpritesGeo"].get();
+	treeSpritesRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
+	treeSpritesRitem->IndexCount = treeSpritesRitem->Geo->DrawArgs["points"].IndexCount;
+	treeSpritesRitem->StartIndexLocation = treeSpritesRitem->Geo->DrawArgs["points"].StartIndexLocation;
+	treeSpritesRitem->BaseVertexLocation = treeSpritesRitem->Geo->DrawArgs["points"].BaseVertexLocation;
+
+	mRitemLayer[(int)RenderLayer::AlphaTestedTreeSprites].push_back(treeSpritesRitem.get());
 
 	mAllRItems.push_back(std::move(wavesRitem));
 	mAllRItems.push_back(std::move(gridRitem));
 	mAllRItems.push_back(std::move(fenceRItem));
 	mAllRItems.push_back(std::move(cylinderRItem));
+	mAllRItems.push_back(std::move(treeSpritesRitem));
 
 	UINT numColors = (UINT)mDepthColors.size();
 
 	UINT i = 0;
 	for (auto& color : mDepthColors) {
 		auto depthQuadRItem = std::make_unique<RenderItem>();
-		depthQuadRItem->ObjCBIndex = 4 + i;
+		depthQuadRItem->ObjCBIndex = 5 + i;
 		depthQuadRItem->Mat = mMaterials["white"].get();
 		depthQuadRItem->Geo = mGeometries["visualizationQuad"].get();
 		depthQuadRItem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
