@@ -1,3 +1,29 @@
-﻿  LitWaves.cpp
+﻿  stdafx.cpp
+  Waves.cpp
+  Subdivider.cpp
+  StencilApp.cpp
+  SkullGeometry.cpp
+  ShapesApp.cpp
+  Pyramid.cpp
+  MathHelper.cpp
+  LitWavesDriver.cpp
+  LitWaves.cpp
+  LitColumns.cpp
+  LandAndWaves.cpp
+  InitDirect3D.cpp
+  GrowingPyramid.cpp
+  GeometryGenerator.cpp
+  GeometricObject.cpp
+  GameTimer.cpp
+  FrameResource.cpp
+  DDSTextureLoader.cpp
+  d3dUtil.cpp
+  D3DApp.cpp
+  Generating Code...
+  Compiling...
+  CrateApp.cpp
+  BoxApp.cpp
+  Box.cpp
+  Generating Code...
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.exe
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.pdb (Partial PDB)

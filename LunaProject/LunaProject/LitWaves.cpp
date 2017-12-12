@@ -37,6 +37,10 @@ bool LitWavesApp::Initialize()
 	BuildLandGeometry();
 	BuildTreeSpriteGeometry();
 	BuildWavesGeometryBuffers();
+
+	mSubdivider = std::make_unique<Subdivider>(mCommandList, md3dDevice);
+	mSubdivider->BuildGeometry();
+
 	BuildMaterials();
 	BuildRenderItems();
 	BuildFrameResources();
@@ -77,7 +81,7 @@ void LitWavesApp::Update(const GameTimer & gt)
 		CloseHandle(eventHandle);
 	}
 
-	UpdateWaves(gt);
+	// UpdateWaves(gt);
 	UpdateLightning(gt);
 	UpdateObjectCBs(gt);
 	UpdateMaterialCBs(gt);
@@ -139,17 +143,21 @@ void LitWavesApp::Draw(const GameTimer & gt)
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Additive]);
 	}
 	else {
+		mCommandList->SetPipelineState(mPSOs["subdivider"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::OptimizedSphere]);
+
 		mCommandList->SetPipelineState(mPSOs["alphaTested"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
 
-		mCommandList->SetPipelineState(mPSOs["transparent"].Get());
-		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
+		//mCommandList->SetPipelineState(mPSOs["transparent"].Get());
+		//DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
 
 		mCommandList->SetPipelineState(mPSOs["additive"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Additive]);
 
 		mCommandList->SetPipelineState(mPSOs["treeArray"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTestedTreeSprites]);
+
 
 	}
 
@@ -308,6 +316,8 @@ void LitWavesApp::UpdateObjectCBs(const GameTimer& gt)
 			ObjectConstants objConstants;
 			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
+			auto inverseWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
+			XMStoreFloat4x4(&objConstants.WorldInvTranspose, XMMatrixTranspose(inverseWorld));
 			objConstants.Color = rItem->Color;
 			currObjectCB->CopyData(rItem->ObjCBIndex, objConstants);
 			rItem->NumFramesDirty--;
@@ -625,16 +635,25 @@ void LitWavesApp::BuildShadersAndInputLayout()
 	mShaders["alphaTestedPS"] = d3dUtil::CompileShader(L"Shaders\\AnimatedWaves.hlsl", alphaDefines, "PS", "ps_5_0");
 	mShaders["arrayDrawPS"] = d3dUtil::CompileShader(L"Shaders\\TreeGeometry.hlsl", arrayDraw, "GeoPS", "ps_5_0");
 
-	mInputLayout =
+	mShaders["subdividerPS"] = d3dUtil::CompileShader(L"Shaders\\Subdivide.hlsl", nullptr, "SPS", "ps_5_0");
+	mShaders["subdividerGS"] = d3dUtil::CompileShader(L"Shaders\\Subdivide.hlsl", nullptr, "SGS", "gs_5_0");
+	mShaders["subdividerVS"] = d3dUtil::CompileShader(L"Shaders\\SUbdivide.hlsl", nullptr, "SVS", "vs_5_0");
+
+	mInputLayouts[(int)InputLayouts::Standard] = 
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
-	mTreeInputLayout = {
+	mInputLayouts[(int)InputLayouts::TreeArray] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+	};
+
+	mInputLayouts[(int)InputLayouts::Local] = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
 	};
 }
 
@@ -738,7 +757,6 @@ void LitWavesApp::BuildLandGeometry()
 
 	mGeometries["landGeo"] = std::move(geo);
 }
-
 
 void LitWavesApp::BuildWavesGeometryBuffers()
 {
@@ -912,7 +930,8 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC LitWavesApp::BuildOpaquePSO()
 	// PSO for opaque objects.
 	//
 	ZeroMemory(&opaquePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-	opaquePsoDesc.InputLayout = { mInputLayout.data(), (UINT)mInputLayout.size() };
+	opaquePsoDesc.InputLayout = { mInputLayouts[(int)InputLayouts::Standard].data(),
+			(UINT)mInputLayouts[(int)InputLayouts::Standard].size() };
 	opaquePsoDesc.pRootSignature = mRootSignature.Get();
 	opaquePsoDesc.VS =
 	{
@@ -1053,8 +1072,8 @@ void LitWavesApp::BuildTreeArrayPSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC & d
 	treeArrayPSO.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 	treeArrayPSO.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	treeArrayPSO.InputLayout = {
-		mTreeInputLayout.data(),
-		(UINT)mTreeInputLayout.size()
+		mInputLayouts[(int)InputLayouts::TreeArray].data(),
+		(UINT)mInputLayouts[(int)InputLayouts::TreeArray].size()
 	};
 
 	treeArrayPSO.BlendState.AlphaToCoverageEnable = true;
@@ -1080,6 +1099,29 @@ void LitWavesApp::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&alphaTestedPSO, IID_PPV_ARGS(&mPSOs["alphaTested"])));
 
 	BuildDepthVisualizationPSOs(pso);
+
+	auto subdividerPSO = wireframe;
+	subdividerPSO.PS = {
+		reinterpret_cast<BYTE*>(mShaders["subdividerPS"]->GetBufferPointer()),
+		mShaders["subdividerPS"]->GetBufferSize()
+	};
+
+	subdividerPSO.VS = {
+		reinterpret_cast<BYTE*>(mShaders["subdividerVS"]->GetBufferPointer()),
+		mShaders["subdividerVS"]->GetBufferSize()
+	};
+
+	subdividerPSO.GS = {
+		reinterpret_cast<BYTE*>(mShaders["subdividerGS"]->GetBufferPointer()),
+		mShaders["subdividerGS"]->GetBufferSize()
+	};
+
+	subdividerPSO.InputLayout = {
+		mInputLayouts[(int)InputLayouts::Local].data(),
+		mInputLayouts[(int)InputLayouts::Local].size()
+	};
+
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&subdividerPSO, IID_PPV_ARGS(&mPSOs["subdivider"])));
 }
 
 void LitWavesApp::BuildFrameResources()
@@ -1216,18 +1258,31 @@ void LitWavesApp::BuildRenderItems()
 
 	mRitemLayer[(int)RenderLayer::AlphaTestedTreeSprites].push_back(treeSpritesRitem.get());
 
+	auto icoRitem = std::make_unique<RenderItem>();
+
+	XMStoreFloat4x4(&icoRitem->World, XMMatrixScaling(5.0f, 5.0f, 5.0f)*XMMatrixTranslation(-2.0f, 10.0f, 0.0f));
+	icoRitem->ObjCBIndex = 5;
+	icoRitem->Mat = mMaterials["grass"].get();
+	icoRitem->Geo = mSubdivider->GetGeometry();
+	icoRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	auto sub = mSubdivider->GetSubmesh("icosahedron");
+	icoRitem->IndexCount = sub.IndexCount;
+	icoRitem->StartIndexLocation = sub.StartIndexLocation;
+	icoRitem->BaseVertexLocation = sub.BaseVertexLocation;
+	mRitemLayer[(int)RenderLayer::OptimizedSphere].push_back(icoRitem.get());
+
 	mAllRItems.push_back(std::move(wavesRitem));
 	mAllRItems.push_back(std::move(gridRitem));
 	mAllRItems.push_back(std::move(fenceRItem));
 	mAllRItems.push_back(std::move(cylinderRItem));
 	mAllRItems.push_back(std::move(treeSpritesRitem));
+	mAllRItems.push_back(std::move(icoRitem));
 
 	UINT numColors = (UINT)mDepthColors.size();
 
-	UINT i = 0;
 	for (auto& color : mDepthColors) {
 		auto depthQuadRItem = std::make_unique<RenderItem>();
-		depthQuadRItem->ObjCBIndex = 5 + i;
+		depthQuadRItem->ObjCBIndex = (UINT)mAllRItems.size();
 		depthQuadRItem->Mat = mMaterials["white"].get();
 		depthQuadRItem->Geo = mGeometries["visualizationQuad"].get();
 		depthQuadRItem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1237,7 +1292,6 @@ void LitWavesApp::BuildRenderItems()
 		XMStoreFloat4(&depthQuadRItem->Color, color);
 		mRitemLayer[(int)RenderLayer::DepthVisualizer].push_back(depthQuadRItem.get());
 		mAllRItems.push_back(std::move(depthQuadRItem));
-		++i;
 	}
 }
 

@@ -70,6 +70,12 @@
     <Filter Include="Source Files\Geometry">
       <UniqueIdentifier>{e7cc6b9e-3d00-49ac-b8fe-66c3b2c4ab5d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Util">
+      <UniqueIdentifier>{c8124537-ec77-4c75-936f-d2a4ea5582d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Util">
+      <UniqueIdentifier>{d6027139-553a-4512-a139-7a89aa7daf68}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -216,6 +222,9 @@
     <ClInclude Include="StencilApp.h">
       <Filter>Header Files\Apps</Filter>
     </ClInclude>
+    <ClInclude Include="Subdivider.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -286,6 +295,9 @@
     </ClCompile>
     <ClCompile Include="LitWavesDriver.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Subdivider.cpp">
+      <Filter>Source Files\Util</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

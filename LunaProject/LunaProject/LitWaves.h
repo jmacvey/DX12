@@ -8,10 +8,12 @@
 #include "GeometryGenerator.h"
 #include "GeometricObject.h"
 #include "DDSTextureLoader.h"
+#include "Subdivider.h"
 
 using namespace CrateDemo;
 using LightingDemo::RenderItem;
 using LightingDemo::RenderLayer;
+using LightingDemo::InputLayouts;
 
 
 class LitWavesApp : public D3DApp {
@@ -82,8 +84,7 @@ private:
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
 	std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
 
-	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
-	std::vector<D3D12_INPUT_ELEMENT_DESC> mTreeInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayouts[(int)InputLayouts::Count];
 
 	RenderItem* mWavesRItem = nullptr;
 
@@ -119,6 +120,7 @@ private:
 	};
 
 	POINT mLastMousePos;
+	std::unique_ptr<Subdivider> mSubdivider;
 };
 
 #endif

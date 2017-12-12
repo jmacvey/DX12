@@ -58,6 +58,14 @@ namespace LightingDemo {
 		DepthVisualizer,
 		AlphaTestedTreeSprites,
 		Additive,
+		OptimizedSphere,
+		Count
+	};
+
+	enum class InputLayouts : int {
+		Standard,
+		TreeArray,
+		Local,
 		Count
 	};
 }
