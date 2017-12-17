@@ -63,8 +63,8 @@ private:
 	void BuildFrameResources();
 	void BuildMaterials();
 	void BuildRenderItems();
+	void AddShadersToPSO(D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc, const std::string& shaderPrefix);
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& rItems, bool isVisualizers = false);
-
 	float GetHillsHeight(float x, float z) const;
 	XMFLOAT3 GetHillsNormal(float x, float z) const;
 
@@ -110,6 +110,7 @@ private:
 
 	bool mDepthVisualizerEnabled = false;
 	bool mBlendVisualizerEnabled = false;
+	bool mNormalVisualizerEnabled = false;
 
 	std::array<XMVECTORF32, 6> mDepthColors = {
 		DirectX::Colors::White,		// 0

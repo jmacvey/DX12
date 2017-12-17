@@ -81,7 +81,7 @@ void LitWavesApp::Update(const GameTimer & gt)
 		CloseHandle(eventHandle);
 	}
 
-	// UpdateWaves(gt);
+	UpdateWaves(gt);
 	UpdateLightning(gt);
 	UpdateObjectCBs(gt);
 	UpdateMaterialCBs(gt);
@@ -143,22 +143,29 @@ void LitWavesApp::Draw(const GameTimer & gt)
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Additive]);
 	}
 	else {
-		mCommandList->SetPipelineState(mPSOs["subdivider"].Get());
+		mCommandList->SetPipelineState(mPSOs["explosion"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::OptimizedSphere]);
 
 		mCommandList->SetPipelineState(mPSOs["alphaTested"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
 
-		//mCommandList->SetPipelineState(mPSOs["transparent"].Get());
-		//DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
+		mCommandList->SetPipelineState(mPSOs["transparent"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
 
 		mCommandList->SetPipelineState(mPSOs["additive"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Additive]);
 
 		mCommandList->SetPipelineState(mPSOs["treeArray"].Get());
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTestedTreeSprites]);
+	}
 
-
+	if (mNormalVisualizerEnabled) {
+		mCommandList->SetPipelineState(mPSOs["normalVisualizer"].Get());
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::AlphaTested]);
+		//DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Blended]);
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Additive]);
+		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::OptimizedSphere]);
 	}
 
 	if (mDepthVisualizerEnabled) {
@@ -262,11 +269,16 @@ void LitWavesApp::OnKeyboardInput(const GameTimer & gt)
 	if (GetAsyncKeyState('O') & 0x8000) {
 		mDepthVisualizerEnabled = false;
 		mBlendVisualizerEnabled = false;
+		mNormalVisualizerEnabled = false;
 	}
 
 	if (GetAsyncKeyState('B') & 0x8000) {
 		mDepthVisualizerEnabled = false;
 		mBlendVisualizerEnabled = true;
+	}
+
+	if (GetAsyncKeyState('N') & 0x8000) {
+		mNormalVisualizerEnabled = true;
 	}
 
 	mSunPhi = MathHelper::Clamp(mSunPhi, 0.1f, XM_PIDIV2);
@@ -637,7 +649,14 @@ void LitWavesApp::BuildShadersAndInputLayout()
 
 	mShaders["subdividerPS"] = d3dUtil::CompileShader(L"Shaders\\Subdivide.hlsl", nullptr, "SPS", "ps_5_0");
 	mShaders["subdividerGS"] = d3dUtil::CompileShader(L"Shaders\\Subdivide.hlsl", nullptr, "SGS", "gs_5_0");
-	mShaders["subdividerVS"] = d3dUtil::CompileShader(L"Shaders\\SUbdivide.hlsl", nullptr, "SVS", "vs_5_0");
+	mShaders["subdividerVS"] = d3dUtil::CompileShader(L"Shaders\\Subdivide.hlsl", nullptr, "DefaultVS", "vs_5_0");
+	mShaders["normalVisualizerGS"] = d3dUtil::CompileShader(L"Shaders\\NormalFaceVisualizer.hlsl", nullptr, "DefaultGS", "gs_5_0");
+	mShaders["normalVisualizerPS"] = d3dUtil::CompileShader(L"Shaders\\NormalFaceVisualizer.hlsl", nullptr, "DefaultPS", "ps_5_0");
+	mShaders["normalVisualizerVS"] = d3dUtil::CompileShader(L"Shaders\\NormalFaceVisualizer.hlsl", nullptr, "DefaultVS", "vs_5_0");
+
+	mShaders["explosionGS"] = d3dUtil::CompileShader(L"Shaders\\Explosion.hlsl", nullptr, "DefaultGS", "gs_5_0");
+	mShaders["explosionPS"] = d3dUtil::CompileShader(L"Shaders\\Explosion.hlsl", nullptr, "DefaultPS", "ps_5_0");
+	mShaders["explosionVS"] = d3dUtil::CompileShader(L"Shaders\\Explosion.hlsl", nullptr, "DefaultVS", "vs_5_0");
 
 	mInputLayouts[(int)InputLayouts::Standard] = 
 	{
@@ -1054,20 +1073,7 @@ void LitWavesApp::BuildDepthVisualizationPSOs(const D3D12_GRAPHICS_PIPELINE_STAT
 void LitWavesApp::BuildTreeArrayPSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC & desc)
 {
 	auto treeArrayPSO = desc;
-	treeArrayPSO.VS = {
-		reinterpret_cast<BYTE*>(mShaders["arrayDrawVS"]->GetBufferPointer()),
-		(UINT)mShaders["arrayDrawVS"]->GetBufferSize()
-	};
-
-	treeArrayPSO.GS = {
-		reinterpret_cast<BYTE*>(mShaders["arrayDrawGS"]->GetBufferPointer()),
-		(UINT)mShaders["arrayDrawGS"]->GetBufferSize()
-	};
-
-	treeArrayPSO.PS = {
-		reinterpret_cast<BYTE*>(mShaders["arrayDrawPS"]->GetBufferPointer()),
-		(UINT)mShaders["arrayDrawPS"]->GetBufferSize()
-	};
+	AddShadersToPSO(treeArrayPSO, "arrayDraw");
 
 	treeArrayPSO.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 	treeArrayPSO.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
@@ -1101,20 +1107,7 @@ void LitWavesApp::BuildPSOs()
 	BuildDepthVisualizationPSOs(pso);
 
 	auto subdividerPSO = wireframe;
-	subdividerPSO.PS = {
-		reinterpret_cast<BYTE*>(mShaders["subdividerPS"]->GetBufferPointer()),
-		mShaders["subdividerPS"]->GetBufferSize()
-	};
-
-	subdividerPSO.VS = {
-		reinterpret_cast<BYTE*>(mShaders["subdividerVS"]->GetBufferPointer()),
-		mShaders["subdividerVS"]->GetBufferSize()
-	};
-
-	subdividerPSO.GS = {
-		reinterpret_cast<BYTE*>(mShaders["subdividerGS"]->GetBufferPointer()),
-		mShaders["subdividerGS"]->GetBufferSize()
-	};
+	AddShadersToPSO(subdividerPSO, "subdivider");
 
 	subdividerPSO.InputLayout = {
 		mInputLayouts[(int)InputLayouts::Local].data(),
@@ -1122,6 +1115,15 @@ void LitWavesApp::BuildPSOs()
 	};
 
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&subdividerPSO, IID_PPV_ARGS(&mPSOs["subdivider"])));
+
+	auto normalVisualizerPso = pso;
+	AddShadersToPSO(normalVisualizerPso, "normalVisualizer");
+	normalVisualizerPso.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&normalVisualizerPso, IID_PPV_ARGS(&mPSOs["normalVisualizer"])));
+
+	auto explosionPso = pso;
+	AddShadersToPSO(explosionPso, "explosion");
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&explosionPso, IID_PPV_ARGS(&mPSOs["explosion"])));
 }
 
 void LitWavesApp::BuildFrameResources()
@@ -1293,6 +1295,27 @@ void LitWavesApp::BuildRenderItems()
 		mRitemLayer[(int)RenderLayer::DepthVisualizer].push_back(depthQuadRItem.get());
 		mAllRItems.push_back(std::move(depthQuadRItem));
 	}
+}
+
+void LitWavesApp::AddShadersToPSO(D3D12_GRAPHICS_PIPELINE_STATE_DESC & desc, const std::string & shaderPrefix)
+{
+	auto psString = shaderPrefix + "PS";
+	auto vsString = shaderPrefix + "VS";
+	auto gsString = shaderPrefix + "GS";
+	desc.PS = {
+		reinterpret_cast<BYTE*>(mShaders[psString]->GetBufferPointer()),
+		mShaders[psString]->GetBufferSize()
+	};
+	
+	desc.VS = {
+		reinterpret_cast<BYTE*>(mShaders[vsString]->GetBufferPointer()),
+		mShaders[vsString]->GetBufferSize()
+	};
+
+	desc.GS = {
+		reinterpret_cast<BYTE*>(mShaders[gsString]->GetBufferPointer()),
+		mShaders[gsString]->GetBufferSize()
+	};
 }
 
 void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const std::vector<RenderItem*>& rItems, bool isVisualizers)

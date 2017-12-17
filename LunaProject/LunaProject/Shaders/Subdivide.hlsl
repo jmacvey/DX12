@@ -1,14 +1,5 @@
 #include "buffers.hlsl"
-
-struct SVertexIn {
-	float3 PosL : POSITION;
-	float3 NormalL : NORMAL;
-};
-
-struct SVertexOut {
-	float3 PosL : POSITION;
-	float3 NormalL: NORMAL;
-};
+#include "LocalToWorldModels.hlsl"
 
 struct GSOutput
 {
@@ -17,13 +8,6 @@ struct GSOutput
 	float3 NormalW: NORMAL;
 };
 
-
-SVertexOut SVS(SVertexIn v) {
-	SVertexOut vOut;
-	vOut.PosL = v.PosL;
-	vOut.NormalL = v.NormalL;
-	return vOut;
-}
 
 void ConvertVertexToGSOut(SVertexOut input, out GSOutput output) {
 	output.PosW = mul(float4(input.PosL, 1.0f), gWorld).xyz;
