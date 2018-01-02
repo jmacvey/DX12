@@ -76,6 +76,12 @@
     <Filter Include="Source Files\Util">
       <UniqueIdentifier>{d6027139-553a-4512-a139-7a89aa7daf68}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\FrameResources">
+      <UniqueIdentifier>{920536d1-bb9b-4d3e-8a5c-87c3d27ce001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\FrameResources">
+      <UniqueIdentifier>{acca1a0f-572c-4445-a063-0b1a44dd66bc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -136,6 +142,7 @@
     <Text Include="GeometryHelper.txt">
       <Filter>Notes\C6.Drawing</Filter>
     </Text>
+    <Text Include="Outputs\VecMag10.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -225,6 +232,24 @@
     <ClInclude Include="Subdivider.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="BlurApp.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
+    <ClInclude Include="BlurAppFrameResource.h">
+      <Filter>Header Files\FrameResources</Filter>
+    </ClInclude>
+    <ClInclude Include="BlurFilter.h">
+      <Filter>Header Files\LunaUtility</Filter>
+    </ClInclude>
+    <ClInclude Include="WavesGPU.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Sobel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageComposer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -293,11 +318,26 @@
     <ClCompile Include="StencilApp.cpp">
       <Filter>Source Files\Apps</Filter>
     </ClCompile>
-    <ClCompile Include="LitWavesDriver.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Subdivider.cpp">
       <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="BlurApp.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="BlurAppFrameResource.cpp">
+      <Filter>Source Files\FrameResources</Filter>
+    </ClCompile>
+    <ClCompile Include="BlurFilter.cpp">
+      <Filter>Source Files\LunaUtility</Filter>
+    </ClCompile>
+    <ClCompile Include="WavesGPU.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Sobel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BlurDriver.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

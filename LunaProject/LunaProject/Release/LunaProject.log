@@ -1,0 +1,2 @@
+﻿MSVCRT.lib(exe_main.obj) : error LNK2001: unresolved external symbol _main
+C:\Users\jmacvey\source\repos\DX12\LunaProject\Release\LunaProject.exe : fatal error LNK1120: 1 unresolved externals

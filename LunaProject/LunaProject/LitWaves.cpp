@@ -580,7 +580,6 @@ void LitWavesApp::BuildRootSignature()
 {
 	CD3DX12_ROOT_PARAMETER slotRootParameter[5];
 
-
 	slotRootParameter[0].InitAsConstantBufferView(0); // object constants
 	slotRootParameter[1].InitAsConstantBufferView(1); // material constnats
 	slotRootParameter[2].InitAsConstantBufferView(2); // pass constants
@@ -1111,7 +1110,7 @@ void LitWavesApp::BuildPSOs()
 
 	subdividerPSO.InputLayout = {
 		mInputLayouts[(int)InputLayouts::Local].data(),
-		mInputLayouts[(int)InputLayouts::Local].size()
+		(UINT)mInputLayouts[(int)InputLayouts::Local].size()
 	};
 
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&subdividerPSO, IID_PPV_ARGS(&mPSOs["subdivider"])));

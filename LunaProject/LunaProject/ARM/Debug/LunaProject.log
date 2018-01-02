@@ -1,0 +1,53 @@
+﻿  stdafx.cpp
+  Waves.cpp
+  Subdivider.cpp
+  StencilApp.cpp
+StencilApp.cpp(282): warning C4267: 'initializing': conversion from 'size_t' to 'UINT', possible loss of data
+StencilApp.cpp(290): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+StencilApp.cpp(450): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
+  SkullGeometry.cpp
+  ShapesApp.cpp
+  BlurAppFrameResource.cpp
+  Pyramid.cpp
+  MathHelper.cpp
+  LitWaves.cpp
+LitWaves.cpp(874): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+LitWaves.cpp(875): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+LitWaves.cpp(1337): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
+  LitColumns.cpp
+LitColumns.cpp(623): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
+  LandAndWaves.cpp
+  InitDirect3D.cpp
+  GrowingPyramid.cpp
+  GeometryGenerator.cpp
+GeometryGenerator.cpp(341): warning C4267: 'initializing': conversion from 'size_t' to 'GeometryGenerator::uint32', possible loss of data
+GeometryGenerator.cpp(608): warning C4267: 'initializing': conversion from 'size_t' to 'GeometryGenerator::uint32', possible loss of data
+GeometryGenerator.cpp(608): warning C4267: 'initializing': conversion from 'size_t' to 'const GeometryGenerator::uint32', possible loss of data
+GeometryGenerator.cpp(622): warning C4267: 'initializing': conversion from 'size_t' to 'GeometryGenerator::uint32', possible loss of data
+GeometryGenerator.cpp(622): warning C4267: 'initializing': conversion from 'size_t' to 'const GeometryGenerator::uint32', possible loss of data
+GeometryGenerator.cpp(643): warning C4267: 'initializing': conversion from 'size_t' to 'GeometryGenerator::uint32', possible loss of data
+GeometryGenerator.cpp(643): warning C4267: 'initializing': conversion from 'size_t' to 'const GeometryGenerator::uint32', possible loss of data
+GeometryGenerator.cpp(658): warning C4267: 'initializing': conversion from 'size_t' to 'GeometryGenerator::uint32', possible loss of data
+GeometryGenerator.cpp(658): warning C4267: 'initializing': conversion from 'size_t' to 'const GeometryGenerator::uint32', possible loss of data
+  GeometricObject.cpp
+GeometricObject.cpp(58): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+GeometricObject.cpp(59): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+  GameTimer.cpp
+  FrameResource.cpp
+  DDSTextureLoader.cpp
+  d3dUtil.cpp
+  D3DApp.cpp
+  Generating Code...
+  Compiling...
+  CrateApp.cpp
+CrateApp.cpp(137): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+CrateApp.cpp(138): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+CrateApp.cpp(181): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  BoxApp.cpp
+BoxApp.cpp(380): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+  Box.cpp
+  BlurFilter.cpp
+  BlurDriver.cpp
+  BlurApp.cpp
+  Generating Code...
+kernel32.lib(KERNEL32.dll) : fatal error LNK1112: module machine type 'ARM' conflicts with target machine type 'x64'
