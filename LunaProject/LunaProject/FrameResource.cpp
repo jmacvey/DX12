@@ -79,10 +79,33 @@ CrateDemo::FrameResource::FrameResource(ID3D12Device* device, UINT passCount, UI
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		IID_PPV_ARGS(CmdListAlloc.GetAddressOf())
 	));
+	
+	if (passCount != 0) 
+		PassCB = std::make_unique<UploadBuffer<PassConstants>>(device, passCount, true);
 
-	PassCB = std::make_unique<UploadBuffer<PassConstants>>(device, passCount, true);
-	ObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(device, objectCount, true);
-	MaterialCB = std::make_unique<UploadBuffer<MaterialConstants>>(device, materialCount, true);
+	if (objectCount != 0)
+		ObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(device, objectCount, true);
+
+	if (materialCount != 0)
+		MaterialCB = std::make_unique<UploadBuffer<MaterialConstants>>(device, materialCount, true);
 }
 
 CrateDemo::FrameResource::~FrameResource() {}
+
+LightingDemo::TessFrameResource::TessFrameResource(ID3D12Device * device, UINT passCount, UINT objectCount)
+{
+	ThrowIfFailed(device->CreateCommandAllocator(
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		IID_PPV_ARGS(CmdListAlloc.GetAddressOf())
+	));
+
+	if (passCount != 0)
+		PassCB = std::make_unique<UploadBuffer<PassConstantsThrough>>(device, passCount, true);
+
+	if (objectCount != 0)
+		ObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(device, objectCount, true);
+}
+
+LightingDemo::TessFrameResource::~TessFrameResource()
+{
+}

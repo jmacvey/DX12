@@ -1,9 +1,10 @@
-﻿  BlurApp.cpp
-  Generating Code...
-  Compiling...
-  Sobel.cpp
-c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\sobel.cpp(74): warning C4244: 'argument': conversion from 'double' to 'UINT', possible loss of data
-  BlurDriver.cpp
-  Generating Code...
+﻿  TessApp.cpp
+c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.11.25503\include\memory(2438): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
+  c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\tessapp.cpp(131): note: see reference to function template instantiation 'std::unique_ptr<LightingDemo::TessFrameResource,std::default_delete<_Ty>> std::make_unique<LightingDemo::TessFrameResource,T*,int,unsigned __int64,void>(T *&&,int &&,unsigned __int64 &&)' being compiled
+          with
+          [
+              _Ty=LightingDemo::TessFrameResource,
+              T=ID3D12Device
+          ]
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.exe
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.pdb (Partial PDB)

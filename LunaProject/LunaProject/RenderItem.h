@@ -59,6 +59,7 @@ namespace LightingDemo {
 		AlphaTestedTreeSprites,
 		Additive,
 		OptimizedSphere,
+		Bezier,
 		Count
 	};
 

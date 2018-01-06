@@ -260,6 +260,7 @@
     <ClInclude Include="BlurFilter.h" />
     <ClInclude Include="ImageComposer.h" />
     <ClInclude Include="Sobel.h" />
+    <ClInclude Include="TessApp.h" />
     <ClInclude Include="WavesGPU.h" />
     <ClInclude Include="ShapesApp.h" />
     <ClInclude Include="SkullGeometry.h" />
@@ -273,7 +274,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BlurApp.cpp" />
-    <ClCompile Include="BlurDriver.cpp" />
     <ClCompile Include="BlurFilter.cpp" />
     <ClCompile Include="Box.cpp" />
     <ClCompile Include="BoxApp.cpp" />
@@ -294,6 +294,8 @@
     <ClCompile Include="Pyramid.cpp" />
     <ClCompile Include="BlurAppFrameResource.cpp" />
     <ClCompile Include="Sobel.cpp" />
+    <ClCompile Include="TessApp.cpp" />
+    <ClCompile Include="TessDriver.cpp" />
     <ClCompile Include="WavesGPU.cpp" />
     <ClCompile Include="ShapesApp.cpp" />
     <ClCompile Include="SkullGeometry.cpp" />

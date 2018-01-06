@@ -250,6 +250,9 @@
     <ClInclude Include="ImageComposer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="TessApp.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -324,9 +327,6 @@
     <ClCompile Include="BlurApp.cpp">
       <Filter>Source Files\Apps</Filter>
     </ClCompile>
-    <ClCompile Include="BlurAppFrameResource.cpp">
-      <Filter>Source Files\FrameResources</Filter>
-    </ClCompile>
     <ClCompile Include="BlurFilter.cpp">
       <Filter>Source Files\LunaUtility</Filter>
     </ClCompile>
@@ -336,7 +336,13 @@
     <ClCompile Include="Sobel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BlurDriver.cpp">
+    <ClCompile Include="TessApp.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="BlurAppFrameResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TessDriver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
