@@ -11,6 +11,16 @@ cbuffer passSettings : register(b1)
     float4x4 gViewProj;
 };
 
+cbuffer cbMaterial : register(b2)
+{
+    float4 gDiffuseAlbedo;
+    float3 gFresnelR0;
+    float gRoughness;
+    float4x4 gMatTransform;
+};
+
+Texture2D gDiffuseMap : register(t0);
+
 struct VertexIn
 {
     float3 PosL : POSITION;

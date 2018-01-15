@@ -46,6 +46,14 @@ namespace LightingDemo {
 		int BaseVertexLocation = 0;
 		XMFLOAT4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	};
+	enum class TessLayer : int {
+		Opaque = 0,
+		Sphere,
+		Triangle,
+		QuadBezier,
+		Bezier,
+		Count
+	};
 
 	enum class RenderLayer : int {
 		Opaque = 0,
@@ -60,6 +68,7 @@ namespace LightingDemo {
 		Additive,
 		OptimizedSphere,
 		Bezier,
+		TriangleTess,
 		Count
 	};
 

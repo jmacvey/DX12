@@ -67,6 +67,9 @@ namespace LightingDemo {
 		DirectX::XMFLOAT4X4 Proj = MathHelper::Identity4x4();
 		DirectX::XMFLOAT4X4 ViewProj = MathHelper::Identity4x4();
 		DirectX::XMFLOAT3 EyePos = { 0.0f, 0.0f, 0.0f };
+		float CbPerPassPad0 = 0.0f;
+		Light Lights[MaxLights];
+	
 	};
 
 	struct PassConstants {
@@ -122,7 +125,7 @@ namespace LightingDemo {
 
 	struct TessFrameResource {
 	public:
-		TessFrameResource(ID3D12Device* device, UINT passCount, UINT objectCount);
+		TessFrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT matCount);
 		TessFrameResource(const TessFrameResource& rhs) = delete;
 		TessFrameResource& operator=(const TessFrameResource& rhs) = delete;
 		~TessFrameResource();
@@ -133,6 +136,7 @@ namespace LightingDemo {
 		// Cannot update cbufer until GPU is done processing, so each frame gets buffer
 		std::unique_ptr<UploadBuffer<PassConstantsThrough>> PassCB = nullptr;
 		std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
+		std::unique_ptr<UploadBuffer<MaterialConstants>> MatCB = nullptr;
 		// Fence marks commands up to the point.  Checks if resources are still in use by the GPU
 		UINT64 Fence = 0;
 	};

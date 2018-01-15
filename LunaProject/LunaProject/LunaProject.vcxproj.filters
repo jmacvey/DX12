@@ -253,6 +253,9 @@
     <ClInclude Include="TessApp.h">
       <Filter>Header Files\Apps</Filter>
     </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -342,7 +345,10 @@
     <ClCompile Include="BlurAppFrameResource.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TessDriver.cpp">
+    <ClCompile Include="Camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LitWavesDriver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

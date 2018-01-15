@@ -92,7 +92,7 @@ CrateDemo::FrameResource::FrameResource(ID3D12Device* device, UINT passCount, UI
 
 CrateDemo::FrameResource::~FrameResource() {}
 
-LightingDemo::TessFrameResource::TessFrameResource(ID3D12Device * device, UINT passCount, UINT objectCount)
+LightingDemo::TessFrameResource::TessFrameResource(ID3D12Device * device, UINT passCount, UINT objectCount, UINT matCount)
 {
 	ThrowIfFailed(device->CreateCommandAllocator(
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -104,6 +104,9 @@ LightingDemo::TessFrameResource::TessFrameResource(ID3D12Device * device, UINT p
 
 	if (objectCount != 0)
 		ObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(device, objectCount, true);
+
+	if (matCount != 0)
+		MatCB = std::make_unique<UploadBuffer<MaterialConstants>>(device, matCount, true);
 }
 
 LightingDemo::TessFrameResource::~TessFrameResource()

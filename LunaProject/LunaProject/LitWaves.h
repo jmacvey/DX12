@@ -9,6 +9,7 @@
 #include "GeometricObject.h"
 #include "DDSTextureLoader.h"
 #include "Subdivider.h"
+#include "Camera.h"
 
 using namespace CrateDemo;
 using LightingDemo::RenderItem;
@@ -122,6 +123,7 @@ private:
 
 	POINT mLastMousePos;
 	std::unique_ptr<Subdivider> mSubdivider;
+	std::unique_ptr<Camera> mCamera;
 };
 
 #endif

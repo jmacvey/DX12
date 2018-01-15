@@ -4,6 +4,7 @@
 
 LitWavesApp::LitWavesApp(HINSTANCE hInstance) : D3DApp(hInstance)
 {
+	mCamera = std::make_unique<Camera>();
 }
 
 LitWavesApp::~LitWavesApp()
@@ -57,8 +58,7 @@ bool LitWavesApp::Initialize()
 void LitWavesApp::OnResize()
 {
 	D3DApp::OnResize();
-	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
-	XMStoreFloat4x4(&mProj, P);
+	mCamera->SetLens(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
 }
 
 void LitWavesApp::Update(const GameTimer & gt)
@@ -218,12 +218,14 @@ void LitWavesApp::OnMouseMove(WPARAM btnState, int x, int y)
 		float dx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
 		float dy = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
 
+		mCamera->Rotate(dx);
+		mCamera->Pitch(dy);
 		// Update angles based on input to orbit camera around box.
-		mTheta += dx;
-		mPhi += dy;
+		//mTheta += dx;
+		//mPhi += dy;
 
-		// Restrict the angle mPhi.
-		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
+		//// Restrict the angle mPhi.
+		//mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
 	}
 	else if ((btnState & MK_RBUTTON) != 0)
 	{
@@ -287,17 +289,35 @@ void LitWavesApp::OnKeyboardInput(const GameTimer & gt)
 void LitWavesApp::UpdateCamera(const GameTimer & gt)
 {
 	// Convert Spherical to Cartesian coordinates.
-	mEyePos.x = mRadius*sinf(mPhi)*cosf(mTheta);
-	mEyePos.z = mRadius*sinf(mPhi)*sinf(mTheta);
-	mEyePos.y = mRadius*cosf(mPhi);
+	//mEyePos.x = mRadius*sinf(mPhi)*cosf(mTheta);
+	//mEyePos.z = mRadius*sinf(mPhi)*sinf(mTheta);
+	//mEyePos.y = mRadius*cosf(mPhi);
 
-	// Build the view matrix.
-	XMVECTOR pos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
-	XMVECTOR target = XMVectorZero();
-	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	//// Build the view matrix.
+	//XMVECTOR pos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
+	//XMVECTOR target = XMVectorZero();
+	//XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-	XMStoreFloat4x4(&mView, view);
+	//XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
+	//XMStoreFloat4x4(&mView, view);
+
+	if (GetAsyncKeyState('W') & 0x8000) {
+		mCamera->Walk(10.0f*gt.DeltaTime());
+	}
+
+	if (GetAsyncKeyState('S') & 0x8000) {
+		mCamera->Walk(-10.0f*gt.DeltaTime());
+	}
+
+	if (GetAsyncKeyState('A') & 0x8000) {
+		mCamera->Strafe(-10.0f*gt.DeltaTime());
+	}
+
+	if (GetAsyncKeyState('D') & 0x8000) {
+		mCamera->Strafe(10.0f*gt.DeltaTime());
+	}
+
+	mCamera->UpdateViewMatrix();
 }
 
 void LitWavesApp::UpdateDepthVisualizers(const GameTimer& gt)
@@ -357,8 +377,8 @@ void LitWavesApp::UpdateMaterialCBs(const GameTimer & gt)
 
 void LitWavesApp::UpdateMainPassCB(const GameTimer & gt)
 {
-	XMMATRIX view = XMLoadFloat4x4(&mView);
-	XMMATRIX proj = XMLoadFloat4x4(&mProj);
+	XMMATRIX view = mCamera->View();
+	XMMATRIX proj = mCamera->Proj();
 
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
@@ -371,11 +391,11 @@ void LitWavesApp::UpdateMainPassCB(const GameTimer & gt)
 	XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	mMainPassCB.EyePosW = mEyePos;
+	XMStoreFloat3(&mMainPassCB.EyePosW, mCamera->GetPosition());
 	mMainPassCB.RenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
 	mMainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
-	mMainPassCB.NearZ = 1.0f;
-	mMainPassCB.FarZ = 1000.0f;
+	mMainPassCB.NearZ = mCamera->GetNearZ();
+	mMainPassCB.FarZ = mCamera->GetFarZ();
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };

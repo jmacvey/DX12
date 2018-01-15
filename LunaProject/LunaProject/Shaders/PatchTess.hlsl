@@ -1,3 +1,18 @@
+// Defaults for number of lights.
+#ifndef NUM_DIR_LIGHTS
+#define NUM_DIR_LIGHTS 1
+#endif
+
+#ifndef NUM_POINT_LIGHTS
+#define NUM_POINT_LIGHTS 0
+#endif
+
+#ifndef NUM_SPOT_LIGHTS
+#define NUM_SPOT_LIGHTS 0
+#endif
+
+#include "LightingUtil.hlsl"
+
 cbuffer cbSettings : register(b0)
 {
     float4x4 gWorld;
@@ -9,7 +24,21 @@ cbuffer passSettings : register(b1)
     float4x4 gProj;
     float4x4 gViewProj;
     float3 gEyePos;
+    float cbPerPassPad0;
+    Light gLights[MaxLights];
 };
+
+cbuffer cbMaterial : register(b2)
+{
+    float4 gDiffuseAlbedo;
+    float3 gFresnelR0;
+    float gRoughness;
+    float4x4 gMatTransform;
+};
+
+Texture2D gDiffuseMap : register(t0);
+
+SamplerState gsamAnisotropicWrap : register(s0);
 
 struct VertexIn
 {
@@ -73,7 +102,7 @@ struct HullOut
 };
 
 [domain("quad")]
-[partitioning("integer")]
+[partitioning("fractional_odd")]
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(4)]
 [patchconstantfunc("ConstantHS")]
@@ -90,6 +119,9 @@ HullOut HS(InputPatch<VertexOut, 4> p,
 struct DomainOut
 {
     float4 PosH : SV_POSITION;
+    float3 PosW : POSITION;
+    float3 NormalW : NORMAL;
+    float2 texC : TEXCOORD;
 };
 
 [domain("quad")]
@@ -107,15 +139,34 @@ const OutputPatch<HullOut, 4> quad)
     // displacement mapping
     p.y = 0.3f * (p.z * sin(p.x) + p.x * cos(p.z));
 
+    float3 normal = float3(
+		-0.03f * p.z * cos(0.1f * p.x) - 0.3f * cos(0.1f * p.z),
+		1.0f,
+		-0.3f * sin(0.1f * p.x) + 0.03f * p.x * sin(0.1f * p.z)
+    );
+
     // output
     float4 posW = mul(float4(p, 1.0f), gWorld);
     dout.PosH = mul(posW, gViewProj);
-    
+    dout.PosW = posW.xyz;
+    dout.NormalW = normalize(normal);
+    dout.texC = uv;
     return dout;
 
 }
 
 float4 PS(DomainOut pin) : SV_Target
 {
-    return float4(1.0f, 1.0f, 1.0f, 1.0f);
+    //return gDiffuseAlbedo;
+    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.texC);
+    diffuseAlbedo *= gDiffuseAlbedo;
+    float3 toEyeW = normalize(gEyePos - pin.PosW);
+    const float shininess = 1.0f - gRoughness;
+    Material mat = { diffuseAlbedo, gFresnelR0, shininess };
+    float3 shadowFactor = 1.0f;
+    float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
+        pin.NormalW, toEyeW, shadowFactor);
+
+    directLight.a = diffuseAlbedo.a;
+    return directLight;
 }
