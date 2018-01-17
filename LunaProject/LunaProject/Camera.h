@@ -44,6 +44,7 @@ public:
 	void Strafe(float d);
 	void Pitch(float angle);
 	void Rotate(float angle);
+	bool Roll(float rollTime, float dt);
 	void UpdateViewMatrix();
 	void SetLens(float fovY, float aspect, float zn, float zf);
 

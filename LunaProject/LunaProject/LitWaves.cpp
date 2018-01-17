@@ -220,24 +220,6 @@ void LitWavesApp::OnMouseMove(WPARAM btnState, int x, int y)
 
 		mCamera->Rotate(dx);
 		mCamera->Pitch(dy);
-		// Update angles based on input to orbit camera around box.
-		//mTheta += dx;
-		//mPhi += dy;
-
-		//// Restrict the angle mPhi.
-		//mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
-	}
-	else if ((btnState & MK_RBUTTON) != 0)
-	{
-		// Make each pixel correspond to 0.2 unit in the scene.
-		float dx = 0.2f*static_cast<float>(x - mLastMousePos.x);
-		float dy = 0.2f*static_cast<float>(y - mLastMousePos.y);
-
-		// Update the camera radius based on input.
-		mRadius += dx - dy;
-
-		// Restrict the radius.
-		mRadius = MathHelper::Clamp(mRadius, 5.0f, 1000.0f);
 	}
 
 	mLastMousePos.x = x;
@@ -315,6 +297,16 @@ void LitWavesApp::UpdateCamera(const GameTimer & gt)
 
 	if (GetAsyncKeyState('D') & 0x8000) {
 		mCamera->Strafe(10.0f*gt.DeltaTime());
+	}
+
+	// start rolling
+	// if (rolling)
+	if (GetAsyncKeyState(VK_SPACE) & 0x8000 && !mRolling) {
+		mRolling = true;
+	}
+
+	if (mRolling) {
+		mRolling = mCamera->Roll(0.5f, gt.DeltaTime());
 	}
 
 	mCamera->UpdateViewMatrix();
@@ -1392,4 +1384,9 @@ XMFLOAT3 LitWavesApp::GetHillsNormal(float x, float z) const
 	XMStoreFloat3(&n, unitNormal);
 
 	return n;
+}
+
+void LitWavesApp::RollCamera(const GameTimer& gt, float rollTime)
+{
+	static float currRollTime = 0.0f;
 }

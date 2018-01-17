@@ -157,6 +157,27 @@ void Camera::Rotate(float angle)
 	mViewDirty = true;
 }
 
+bool Camera::Roll(float rollTime, float dt)
+{
+	static float currRollTime = 0.0f;
+	bool isRolling = true;
+
+	if (currRollTime + dt >= rollTime) {
+		dt = rollTime - currRollTime;
+		currRollTime = 0.0f;
+		isRolling = false;
+	} else {
+		currRollTime += dt;
+	}
+
+	XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&mLook), XM_2PI * (dt / rollTime));
+	XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
+	XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
+
+	mViewDirty = true;
+	return isRolling;
+}
+
 void Camera::UpdateViewMatrix()
 {
 	if (mViewDirty) {

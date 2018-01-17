@@ -68,6 +68,7 @@ private:
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& rItems, bool isVisualizers = false);
 	float GetHillsHeight(float x, float z) const;
 	XMFLOAT3 GetHillsNormal(float x, float z) const;
+	void RollCamera(const GameTimer& gt, float rollTime);
 
 private:
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
@@ -102,6 +103,7 @@ private:
 	XMFLOAT4X4 mView = MathHelper::Identity4x4();
 	XMFLOAT4X4 mProj = MathHelper::Identity4x4();
 
+	float mRolling = false;
 	float mTheta = -XM_PIDIV2;
 	float mPhi = XM_PIDIV2 - 0.1f;
 	float mRadius = 50.0f;

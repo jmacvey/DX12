@@ -1,6 +1,6 @@
 ﻿  LitWaves.cpp
-c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\litwaves.cpp(894): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
-c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\litwaves.cpp(895): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
-c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\litwaves.cpp(1357): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
+c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\litwaves.cpp(886): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\litwaves.cpp(887): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\litwaves.cpp(1349): warning C4267: 'argument': conversion from 'size_t' to 'UINT', possible loss of data
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.exe
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.pdb (Partial PDB)
