@@ -25,6 +25,11 @@ std::uint32_t SkullGeometry::GetIndexCount() const
 	return (UINT)mIndices.size();
 }
 
+BoundingBox SkullGeometry::GetBoundingBox() const
+{
+	return mBoundingBox;
+}
+
 void SkullGeometry::ReadFile()
 {
 	std::ifstream ifStream(SkullGeometry::FilePath);
@@ -56,6 +61,10 @@ void SkullGeometry::ReadVertices(std::ifstream & ifStream)
 {
 	std::string buffer;
 	GeometryGenerator::Vertex v;
+	XMFLOAT3 vMin3f(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
+	XMFLOAT3 vMax3f(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
+	XMVECTOR vMin = XMLoadFloat3(&vMin3f);
+	XMVECTOR vMax = XMLoadFloat3(&vMax3f);
 	auto addVertex = [&](std::ifstream& ifStream) {
 		ReadInputConvertToFloat(ifStream, buffer, &v.Position.x);
 		ReadInputConvertToFloat(ifStream, buffer, &v.Position.y);
@@ -63,6 +72,25 @@ void SkullGeometry::ReadVertices(std::ifstream & ifStream)
 		ReadInputConvertToFloat(ifStream, buffer, &v.Normal.x);
 		ReadInputConvertToFloat(ifStream, buffer, &v.Normal.y);
 		ReadInputConvertToFloat(ifStream, buffer, &v.Normal.z, true);
+
+		XMVECTOR P = XMLoadFloat3(&v.Position);
+		XMFLOAT3 spherePos;
+		XMStoreFloat3(&spherePos, XMVector3Normalize(P));
+
+		float theta = atan2f(spherePos.z, spherePos.x);
+		if (theta < 0.0f) {
+			theta += XM_2PI;
+		}
+
+		float phi = acosf(spherePos.y);
+
+		v.TexC.x = theta / (XM_2PI);
+		v.TexC.y = phi / XM_PI;
+
+
+
+		vMin = XMVectorMin(vMin, P);
+		vMax = XMVectorMax(vMax, P);
 		mVertices.emplace_back(std::move(v));
 	};
 
@@ -74,6 +102,11 @@ void SkullGeometry::ReadVertices(std::ifstream & ifStream)
 	for (uint32_t i = 0; i < numVertices; ++i) {
 		addVertex(ifStream);
 	}
+	
+	// store the bounding box
+	XMStoreFloat3(&mBoundingBox.Center, 0.5f*(vMax + vMin));
+	XMStoreFloat3(&mBoundingBox.Extents, 0.5f*(vMax - vMin));
+
 	// closing brace
 	std::getline(ifStream, buffer);
 }

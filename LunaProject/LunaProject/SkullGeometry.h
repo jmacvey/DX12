@@ -17,6 +17,8 @@ public:
 
 	std::uint32_t GetIndexCount() const;
 
+	BoundingBox GetBoundingBox() const;
+
 private:
 
 	void ReadFile();
@@ -30,6 +32,7 @@ private:
 	uint32_t numVertices = 0;
 	uint32_t numIndices = 0;
 	uint32_t numTriangles = 0;
+	BoundingBox mBoundingBox;
 };
 
 #endif

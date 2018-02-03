@@ -256,6 +256,21 @@
     <ClInclude Include="Camera.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="InstancingApp.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
+    <ClInclude Include="InstancingFrameResource.h">
+      <Filter>Header Files\FrameResources</Filter>
+    </ClInclude>
+    <ClInclude Include="PickingApp.h">
+      <Filter>Header Files\Apps</Filter>
+    </ClInclude>
+    <ClInclude Include="CarGeometry.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="PickingFrameResource.h">
+      <Filter>Header Files\FrameResources</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -348,7 +363,16 @@
     <ClCompile Include="Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="LitWavesDriver.cpp">
+    <ClCompile Include="InstancingApp.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="PickingApp.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="PickingDriver.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CarGeometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

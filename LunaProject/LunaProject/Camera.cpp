@@ -121,6 +121,22 @@ float Camera::GetFarWindowWidth() const
 	return mFarWindowHeight * mAspect;
 }
 
+BoundingFrustum& Camera::GetBoundingFrustum()
+{
+	return mCameraFrustum;
+}
+
+XMFLOAT4X4 Camera::GetProj4x4f() const
+{
+	return mProj;
+	return XMFLOAT4X4();
+}
+
+XMMATRIX Camera::GetProj4x4() const
+{
+	return XMLoadFloat4x4(&mProj);
+}
+
 void Camera::Walk(float d)
 {
 	// position += d*mLook -> note that mLook is normalized
@@ -178,7 +194,7 @@ bool Camera::Roll(float rollTime, float dt)
 	return isRolling;
 }
 
-void Camera::UpdateViewMatrix()
+bool Camera::UpdateViewMatrix()
 {
 	if (mViewDirty) {
 		XMVECTOR R = XMLoadFloat3(&mRight);
@@ -219,7 +235,12 @@ void Camera::UpdateViewMatrix()
 		mView(3, 3) = 1.0f;
 
 		mViewDirty = false;
+		
+		// returns true to signify the view was updated
+		return true;
 	}
+	
+	return mViewDirty;
 }
 
 void Camera::SetLens(float fovY, float aspect, float zn, float zf)
@@ -235,4 +256,6 @@ void Camera::SetLens(float fovY, float aspect, float zn, float zf)
 
 	XMMATRIX P = XMMatrixPerspectiveFovLH(mFovY, mAspect, mNearZ, mFarZ);
 	XMStoreFloat4x4(&mProj, P);
+
+	BoundingFrustum::CreateFromMatrix(mCameraFrustum, P);
 }

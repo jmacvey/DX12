@@ -40,12 +40,17 @@ public:
 	float GetFarWindowHeight() const;
 	float GetFarWindowWidth() const;
 
+	BoundingFrustum& GetBoundingFrustum();
+
+	XMFLOAT4X4 GetProj4x4f() const;
+	XMMATRIX GetProj4x4() const;
+
 	void Walk(float d);
 	void Strafe(float d);
 	void Pitch(float angle);
 	void Rotate(float angle);
 	bool Roll(float rollTime, float dt);
-	void UpdateViewMatrix();
+	bool UpdateViewMatrix();
 	void SetLens(float fovY, float aspect, float zn, float zf);
 
 private:
@@ -56,6 +61,8 @@ private:
 	XMFLOAT3 mRight = { 1.0f, 0.0f, 0.0f };
 	XMFLOAT3 mUp = { 0.0f, 1.0f, 0.0f };
 	XMFLOAT3 mLook = { 0.0f, 0.0f, 1.0f };
+
+	BoundingFrustum mCameraFrustum;
 
 	float mNearZ = 0.0f;
 	float mFarZ = 0.0f;
