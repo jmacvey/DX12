@@ -37,6 +37,7 @@ namespace InstancingDemo {
 
 		BoundingBox Bounds;
 		bool Visible = true;
+		bool IgnoreBoundingBox = false;
 	};
 
 
@@ -44,6 +45,7 @@ namespace InstancingDemo {
 	enum RenderLayers {
 		Skulls,
 		Cars,
+		Skies,
 		Count
 	};
 	//

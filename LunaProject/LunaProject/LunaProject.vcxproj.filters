@@ -268,8 +268,8 @@
     <ClInclude Include="CarGeometry.h">
       <Filter>Header Files\Geometry</Filter>
     </ClInclude>
-    <ClInclude Include="PickingFrameResource.h">
-      <Filter>Header Files\FrameResources</Filter>
+    <ClInclude Include="CubeApp.h">
+      <Filter>Header Files\Apps</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -369,10 +369,13 @@
     <ClCompile Include="PickingApp.cpp">
       <Filter>Source Files\Apps</Filter>
     </ClCompile>
-    <ClCompile Include="PickingDriver.cpp">
+    <ClCompile Include="CarGeometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CarGeometry.cpp">
+    <ClCompile Include="CubeApp.cpp">
+      <Filter>Source Files\Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="CubeDriver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

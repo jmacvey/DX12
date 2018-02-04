@@ -1,5 +1,8 @@
-﻿  PickingApp.cpp
-c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\pickingapp.cpp(155): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
-c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\pickingapp.cpp(159): warning C4018: '<': signed/unsigned mismatch
+﻿  CubeApp.cpp
+c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\cubeapp.cpp(154): warning C4018: '<': signed/unsigned mismatch
+  Generating Code...
+  Compiling...
+  CubeDriver.cpp
+  Generating Code...
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.exe
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.pdb (Partial PDB)

@@ -241,6 +241,7 @@
     <ClInclude Include="BoxApp.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CrateApp.h" />
+    <ClInclude Include="CubeApp.h" />
     <ClInclude Include="D3DApp.h" />
     <ClInclude Include="d3dUtil.h" />
     <ClInclude Include="d3dx12.h" />
@@ -257,7 +258,6 @@
     <ClInclude Include="LitWaves.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="CarGeometry.h" />
-    <ClInclude Include="PickingFrameResource.h" />
     <ClInclude Include="PickingApp.h" />
     <ClInclude Include="Pyramid.h" />
     <ClInclude Include="FrameResource.h" />
@@ -286,6 +286,8 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CarGeometry.cpp" />
     <ClCompile Include="CrateApp.cpp" />
+    <ClCompile Include="CubeApp.cpp" />
+    <ClCompile Include="CubeDriver.cpp" />
     <ClCompile Include="D3DApp.cpp" />
     <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
@@ -301,7 +303,6 @@
     <ClCompile Include="LitWaves.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="PickingApp.cpp" />
-    <ClCompile Include="PickingDriver.cpp" />
     <ClCompile Include="Pyramid.cpp" />
     <ClCompile Include="BlurAppFrameResource.cpp" />
     <ClCompile Include="Sobel.cpp" />
