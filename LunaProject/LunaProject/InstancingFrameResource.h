@@ -17,7 +17,7 @@ namespace InstancingDemo {
 		XMFLOAT4X4 World = MathHelper::Identity4x4();
 		XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 		UINT MaterialIndex;
-		UINT InstancePad0;
+		UINT DiffuseMapIndex;
 		UINT InstancePad1;
 		UINT InstancePad2;
 	};
@@ -26,18 +26,21 @@ namespace InstancingDemo {
 		inline RenderItem() {};
 		int NumFramesDirty = 3;
 
+		std::string Name;
 		// geometry data
 		MeshGeometry* Geo;
 		D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 		UINT IndexCount = 0;
 		UINT StartIndexLocation = 0;
 		UINT InstanceCount = 0;
+		UINT StartInstanceLocation = 0;
 		int BaseVertexLocation = 0;
 		std::vector<InstanceData> Instances;
 
 		BoundingBox Bounds;
 		bool Visible = true;
 		bool IgnoreBoundingBox = false;
+		UINT InstanceBufferOffset = 0;
 	};
 
 
@@ -45,6 +48,7 @@ namespace InstancingDemo {
 	enum RenderLayers {
 		Skulls,
 		Cars,
+		Opaque,
 		Skies,
 		Count
 	};
@@ -101,6 +105,24 @@ namespace InstancingDemo {
 				MaterialCB = std::make_unique<UploadBuffer<MaterialData>>(device, materialCount, false);
 			}
 		};
+		FrameResource(ID3D12Device* device, UINT passCount, const std::unordered_map<std::string, UINT>& instanceData, UINT materialCount) {
+			ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+				IID_PPV_ARGS(&CmdListAlloc)));
+
+			if (passCount != 0) {
+				PassCB = std::make_unique<UploadBuffer<PassConstants>>(device, passCount, true);
+			}
+
+			if (instanceData.size() != 0) {
+				for (auto& tuple : instanceData) {
+					RenderItemInstanceCBs[tuple.first] = std::make_unique<UploadBuffer<InstanceData>>(device, tuple.second, false);
+				}
+			}
+
+			if (materialCount != 0) {
+				MaterialCB = std::make_unique<UploadBuffer<MaterialData>>(device, materialCount, false);
+			}
+		};
 
 		FrameResource() = delete;
 		FrameResource(const FrameResource& rhs) = delete;
@@ -112,7 +134,7 @@ namespace InstancingDemo {
 		std::unique_ptr<UploadBuffer<PassConstants>> PassCB;
 		std::unique_ptr<UploadBuffer<InstanceData>> InstanceCB;
 		std::unique_ptr<UploadBuffer<MaterialData>> MaterialCB;
-
+		std::unordered_map<std::string, std::unique_ptr<UploadBuffer<InstanceData>>> RenderItemInstanceCBs;
 		UINT64 Fence;
 
 	};

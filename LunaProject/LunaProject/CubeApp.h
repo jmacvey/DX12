@@ -19,7 +19,7 @@ using namespace DirectX::PackedVector;
 
 enum InputLayoutType {
 	Sky = 0,
-	Basic,
+	Opaque,
 	Count
 };
 
@@ -53,6 +53,7 @@ private:
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildCubeMaps();
+	void BuildObjectTextures();
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers() const;
 
@@ -81,6 +82,7 @@ private:
 	const int mNumFrameResources = 3;
 	int mPassCbOffset = 0;
 	int mCubeMapSrvOffset = 0;
+	int mObjectTextureSrvOffset = 0;
 	int mCurrFrameIndex = 0;
 	int mNumInstances = 125;
 
@@ -95,8 +97,10 @@ private:
 	std::vector<std::unique_ptr<RenderItem>> mAllRenderItems;
 	std::vector<RenderItem*> mRenderLayer[(UINT)RenderLayers::Count];
 
-	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
-	std::vector<std::string> mTextureNames;
+	std::unordered_map<std::string, std::unique_ptr<Texture>> mCubeMaps;
+	std::unordered_map<std::string, std::unique_ptr<Texture>> mObjectTextures;
+	std::vector<std::string> mCubeMapNames;
+	std::vector<std::string> mObjectTextureNames;
 	UINT mSkyCount = 0u;
 	UINT mMaxInstanceCount = 0u;
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
@@ -116,9 +120,12 @@ private:
 		XMFLOAT2 TexC;
 	};
 
+	std::unordered_map<std::string, UINT> mRenderItemInstanceCounts;
+
 	UINT mPassCbvRootParamIndex = 0;
 	UINT mCubeMapSrvRootParamIndex = 0;
 	UINT mInstanceDataRootParamIndex = 0;
+	UINT mObjectTextureRootParamIndex = 0;
 	SkyType mActiveSky = SkyType::Grass;
 };
 

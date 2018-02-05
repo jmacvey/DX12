@@ -4,6 +4,7 @@
 CubeApp::CubeApp(HINSTANCE hInstance) : D3DApp(hInstance)
 {
 	mCamera = std::make_unique<Camera>();
+	mCamera->SetPosition(XMFLOAT3(0.0f, 5.0f, 0.0f));
 }
 
 bool CubeApp::Initialize()
@@ -15,6 +16,7 @@ bool CubeApp::Initialize()
 	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
 	BuildCubeMaps();
+	BuildObjectTextures();
 	BuildGeometry();
 	BuildRenderItems();
 	BuildFrameResources();
@@ -38,21 +40,39 @@ void CubeApp::BuildGeometry()
 {
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(1.0f, 20, 30);
+	GeometryGenerator::MeshData grid = geoGen.CreateGrid(160.0f, 160.0f, 40, 40);
 
 	std::vector<Vertex> vertices;
-	vertices.resize(sphere.Vertices.size());
-	for (UINT i = 0; i < (UINT)vertices.size(); ++i)
-	{
-		vertices[i] = { sphere.Vertices[i].Position, sphere.Vertices[i].Normal, sphere.Vertices[i].TexC };
-	}
+	UINT numSphereVertices = (UINT)sphere.Vertices.size();
+	UINT numGridVertices = (UINT)grid.Vertices.size();
+	UINT numVertices = numSphereVertices + numGridVertices;
+	vertices.resize(numVertices);
+	auto copyVertices = [&](const std::vector<GeometryGenerator::Vertex> vin, UINT offset) {
+		for (UINT i = 0; i < (UINT)vin.size(); ++i) {
+			vertices[i + offset] = { vin[i].Position, vin[i].Normal, vin[i].TexC };
+		}
+	};
+	copyVertices(sphere.Vertices, 0);
+	copyVertices(grid.Vertices, numSphereVertices);
 
-	std::vector<std::uint16_t> indices = sphere.GetIndices16();
+	std::vector<std::uint16_t> indices;
+	UINT numSphereIndices = (UINT)sphere.GetIndices16().size();
+	UINT numGridIndices = (UINT)grid.GetIndices16().size();
+	UINT numIndices = numSphereIndices + numGridIndices;
+	indices.resize(numIndices);
+	auto copyIndices = [&](const std::vector<std::uint16_t> iin, UINT offset) {
+		for (UINT i = 0; i < (UINT)iin.size(); ++i) {
+			indices[i + offset] = iin[i];
+		}
+	};
+	copyIndices(sphere.GetIndices16(), 0);
+	copyIndices(grid.GetIndices16(), numSphereIndices);
 
-	UINT vbByteSize = sizeof(Vertex) * (UINT)vertices.size();
-	UINT ibByteSize = sizeof(std::uint16_t) * (UINT)indices.size();
+	UINT vbByteSize = sizeof(Vertex) * numVertices;
+	UINT ibByteSize = sizeof(std::uint16_t) * numIndices;
 
 	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "skySphere";
+	geo->Name = "AppObjects";
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
 	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 
@@ -64,11 +84,17 @@ void CubeApp::BuildGeometry()
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(), indices.data(),
 		ibByteSize, geo->IndexBufferUploader);
 
+
 	SubmeshGeometry submesh = {};
-	submesh.IndexCount = (UINT)indices.size();
+	submesh.IndexCount = numSphereIndices;
 	submesh.StartIndexLocation = 0u;
 	submesh.BaseVertexLocation = 0u;
 	geo->DrawArgs["skySphere"] = submesh;
+
+	submesh.IndexCount = numGridIndices;
+	submesh.StartIndexLocation = numSphereIndices;
+	submesh.BaseVertexLocation = numSphereVertices;
+	geo->DrawArgs["grid"] = submesh;
 
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -81,27 +107,47 @@ void CubeApp::BuildGeometry()
 void CubeApp::BuildRenderItems()
 {
 	auto rItem = std::make_unique<RenderItem>();
-	rItem->Geo = mGeometries["skySphere"].get();
+	rItem->Geo = mGeometries["AppObjects"].get();
+	rItem->Name = "skySphere";
 	rItem->PrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	rItem->IndexCount = rItem->Geo->DrawArgs["skySphere"].IndexCount;
-	rItem->StartIndexLocation = rItem->Geo->DrawArgs["skySphere"].StartIndexLocation;
+	rItem->IndexCount = rItem->Geo->DrawArgs[rItem->Name].IndexCount;
+	rItem->StartIndexLocation = rItem->Geo->DrawArgs[rItem->Name].StartIndexLocation;
 	rItem->InstanceCount = 1;
-	rItem->BaseVertexLocation = rItem->Geo->DrawArgs["skySphere"].BaseVertexLocation;
+	rItem->StartInstanceLocation = 0;
+	rItem->BaseVertexLocation = rItem->Geo->DrawArgs[rItem->Name].BaseVertexLocation;
 	InstanceData data;
-	rItem->Instances.emplace_back(std::move(data));
+	rItem->Instances.emplace_back(data);
 	rItem->IgnoreBoundingBox = true;
+	mRenderItemInstanceCounts[rItem->Name] = rItem->InstanceCount;
 	mRenderLayer[RenderLayers::Skies].emplace_back(rItem.get());
 	mAllRenderItems.emplace_back(std::move(rItem));
 
+	rItem = std::make_unique<RenderItem>();
+	rItem->Name = "grid";
+	rItem->Geo = mGeometries["AppObjects"].get();
+	rItem->PrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	rItem->IndexCount = rItem->Geo->DrawArgs[rItem->Name].IndexCount;
+	rItem->StartIndexLocation = rItem->Geo->DrawArgs[rItem->Name].StartIndexLocation;
+	rItem->InstanceCount = 1;
+	rItem->StartInstanceLocation = 1;
+	rItem->IgnoreBoundingBox = true;
+	rItem->BaseVertexLocation = rItem->Geo->DrawArgs[rItem->Name].BaseVertexLocation;
+	data.DiffuseMapIndex = 0;
+	XMStoreFloat4x4(&data.TexTransform, XMMatrixScaling(10.0f, 10.0f, 1.0f));
+	rItem->Instances.emplace_back(data);
+	mRenderItemInstanceCounts[rItem->Name] = rItem->InstanceCount;
+	mRenderLayer[RenderLayers::Opaque].emplace_back(rItem.get());
+	mAllRenderItems.emplace_back(std::move(rItem));
 	for (auto& rItem : mAllRenderItems)
 		mMaxInstanceCount += (UINT)rItem->Instances.size();
 }
 
 void CubeApp::BuildDescriptorHeaps()
 {
+	// InstanceData structured buffer per render item
 	auto numRenderItems = mAllRenderItems.size();
 	mPassCbOffset = (int)(numRenderItems * mNumFrameResources);
-	auto numDescriptors = mPassCbOffset + mNumFrameResources + mTextures.size();
+	auto numDescriptors = mPassCbOffset + mNumFrameResources + mObjectTextures.size() + mCubeMaps.size();
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.NumDescriptors = (UINT)numDescriptors;
@@ -125,16 +171,31 @@ void CubeApp::BuildDescriptors()
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-	srvDesc.TextureCube.MostDetailedMip = 0;
-	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-	mCubeMapSrvOffset = mPassCbOffset + 3;
-	auto dHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), mCubeMapSrvOffset, mCbvSrvDescriptorSize);
-	for (UINT i = 0; i < (UINT)mTextureNames.size(); ++i) {
-		auto resource = mTextures[mTextureNames[i]]->Resource.Get();
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	mObjectTextureSrvOffset = mPassCbOffset + 3;
+	auto dHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), mObjectTextureSrvOffset, mCbvSrvDescriptorSize);
+	for (UINT i = 0; i < (UINT)mObjectTextures.size(); ++i) {
+		auto resource = mObjectTextures[mObjectTextureNames[i]]->Resource.Get();
 		srvDesc.Format = resource->GetDesc().Format;
-		srvDesc.TextureCube.MipLevels = resource->GetDesc().MipLevels;
+		srvDesc.Texture2D.MipLevels = resource->GetDesc().MipLevels;
 		md3dDevice->CreateShaderResourceView(resource, &srvDesc, dHandle);
+		dHandle = dHandle.Offset(1, mCbvSrvDescriptorSize);
+	}
+	
+	D3D12_SHADER_RESOURCE_VIEW_DESC cubeSrvDesc = {};
+	cubeSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	cubeSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+	cubeSrvDesc.TextureCube.MostDetailedMip = 0;
+	cubeSrvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+	mCubeMapSrvOffset = mObjectTextureSrvOffset + (UINT)mObjectTextures.size();
+	dHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), mCubeMapSrvOffset, mCbvSrvDescriptorSize);
+	for (UINT i = 0; i < (UINT)mCubeMaps.size(); ++i) {
+		auto resource = mCubeMaps[mCubeMapNames[i]]->Resource.Get();
+		cubeSrvDesc.Format = resource->GetDesc().Format;
+		cubeSrvDesc.TextureCube.MipLevels = resource->GetDesc().MipLevels;
+		md3dDevice->CreateShaderResourceView(resource, &cubeSrvDesc, dHandle);
 		dHandle = dHandle.Offset(1, mCbvSrvDescriptorSize);
 	}
 }
@@ -147,14 +208,16 @@ void CubeApp::BuildInstanceDescriptors()
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Buffer.FirstElement = 0;
-	srvDesc.Buffer.NumElements = mMaxInstanceCount;
 	srvDesc.Buffer.StructureByteStride = sizeof(InstanceData);
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-	for (UINT i = 0; i < mNumFrameResources; ++i) {
-		auto res = mFrameResources[i]->InstanceCB->Resource();
-		md3dDevice->CreateShaderResourceView(res, &srvDesc,
-			CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), i, mCbvSrvDescriptorSize));
+	for (UINT i = 0; i < (UINT)mNumFrameResources; ++i) {
+		for (auto& rItem : mAllRenderItems) {
+			auto res = mFrameResources[i]->RenderItemInstanceCBs[rItem->Name]->Resource();
+			srvDesc.Buffer.NumElements = mRenderItemInstanceCounts[rItem->Name];
+			md3dDevice->CreateShaderResourceView(res, &srvDesc,
+				CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), i, mCbvSrvDescriptorSize));
+		}
 	}
 }
 
@@ -169,19 +232,16 @@ void CubeApp::BuildMaterials()
 
 void CubeApp::CompileShadersAndInputLayout()
 {
-	mShaders["BasicRenderVS"] = d3dUtil::CompileShader(L"Shaders\\BasicRender.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["BasicRenderPS"] = d3dUtil::CompileShader(L"Shaders\\BasicRender.hlsl", nullptr, "PS", "ps_5_1");
+	mShaders["EnvObjVS"] = d3dUtil::CompileShader(L"Shaders\\EnvObject.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["EnvObjPS"] = d3dUtil::CompileShader(L"Shaders\\EnvObject.hlsl", nullptr, "PS", "ps_5_1");
 	mShaders["SkyCubeVS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["SkyCubePS"] = d3dUtil::CompileShader(L"Shaders\\Sky.hlsl", nullptr, "PS", "ps_5_1");
-	mInputLayout[(UINT)InputLayoutType::Basic] = {
-		{ "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u }
-	};
-
-	mInputLayout[(UINT)InputLayoutType::Sky] = {
+	mInputLayout[(UINT)InputLayoutType::Opaque] = {
 		{ "POSITION", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 0u, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
 		{ "NORMAL", 0u, DXGI_FORMAT_R32G32B32_FLOAT, 0u, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u },
 		{ "TEXCOORD", 0u, DXGI_FORMAT_R32G32_FLOAT, 0u, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0u }
 	};
+	mInputLayout[(UINT)InputLayoutType::Sky] = mInputLayout[(UINT)InputLayoutType::Opaque];
 }
 
 void CubeApp::BuildRootSignature()
@@ -222,6 +282,7 @@ void CubeApp::BuildCommonRootSignature()
 	CD3DX12_DESCRIPTOR_RANGE srvTable01(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 1);	// Material Data
 	mInstanceDataRootParamIndex = 3;
 	CD3DX12_DESCRIPTOR_RANGE srvTable1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);		// Instance Data
+	mObjectTextureRootParamIndex = 4;
 	CD3DX12_DESCRIPTOR_RANGE srvTable2(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);		// Textures
 
 
@@ -230,7 +291,7 @@ void CubeApp::BuildCommonRootSignature()
 	rootParams[mCubeMapSrvRootParamIndex].InitAsDescriptorTable(1, &srvTable00);
 	rootParams[2].InitAsDescriptorTable(1, &srvTable01);
 	rootParams[mInstanceDataRootParamIndex].InitAsDescriptorTable(1, &srvTable1);
-	rootParams[4].InitAsDescriptorTable(1, &srvTable2);
+	rootParams[mObjectTextureRootParamIndex].InitAsDescriptorTable(1, &srvTable2);
 
 	auto samplers = GetStaticSamplers();
 
@@ -257,11 +318,11 @@ void CubeApp::BuildPSOs()
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc;
 	ZeroMemory(&desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 
-	desc.pRootSignature = mRootSignature.Get();
-	desc.VS = { reinterpret_cast<BYTE*>(mShaders["BasicRenderVS"]->GetBufferPointer()),
-		(UINT)mShaders["BasicRenderVS"]->GetBufferSize() };
-	desc.PS = { reinterpret_cast<BYTE*>(mShaders["BasicRenderPS"]->GetBufferPointer()),
-		(UINT)mShaders["BasicRenderPS"]->GetBufferSize() };
+	desc.pRootSignature = mCommonRootSignature.Get();
+	desc.VS = { reinterpret_cast<BYTE*>(mShaders["EnvObjVS"]->GetBufferPointer()),
+		(UINT)mShaders["EnvObjVS"]->GetBufferSize() };
+	desc.PS = { reinterpret_cast<BYTE*>(mShaders["EnvObjPS"]->GetBufferPointer()),
+		(UINT)mShaders["EnvObjPS"]->GetBufferSize() };
 
 	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	desc.SampleMask = UINT_MAX;
@@ -269,8 +330,8 @@ void CubeApp::BuildPSOs()
 	rState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	desc.RasterizerState = rState;
 	desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	desc.InputLayout = { mInputLayout[(UINT)InputLayoutType::Basic].data(),
-		(UINT)mInputLayout[(UINT)InputLayoutType::Basic].size()
+	desc.InputLayout = { mInputLayout[(UINT)InputLayoutType::Opaque].data(),
+		(UINT)mInputLayout[(UINT)InputLayoutType::Opaque].size()
 	};
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.NumRenderTargets = 1;
@@ -284,20 +345,6 @@ void CubeApp::BuildPSOs()
 
 	auto opaqueDesc = desc;
 	opaqueDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	opaqueDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
-	transparencyBlendDesc.BlendEnable = true;
-	transparencyBlendDesc.LogicOpEnable = false;
-	transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	transparencyBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	transparencyBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-	transparencyBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-	transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
-	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
-	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-	opaqueDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaqueDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 
 	auto skyDesc = desc;
@@ -321,7 +368,7 @@ void CubeApp::BuildFrameResources()
 {
 	for (UINT i = 0; i < (UINT)mNumFrameResources; ++i) {
 		mFrameResources.emplace_back(std::make_unique<FrameResource>(
-			md3dDevice.Get(), 1, mMaxInstanceCount, (UINT)mMaterials.size()));
+			md3dDevice.Get(), 1, mRenderItemInstanceCounts, (UINT)mMaterials.size()));
 	}
 }
 
@@ -345,8 +392,31 @@ void CubeApp::BuildCubeMaps()
 		tex->Filename = cApp.fileName;
 		ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(),
 			tex->Filename.c_str(), tex->Resource, tex->UploadHeap));
-		mTextureNames.emplace_back(std::move(cApp.name));
-		mTextures[tex->Name] = std::move(tex);
+		mCubeMapNames.emplace_back(std::move(cApp.name));
+		mCubeMaps[tex->Name] = std::move(tex);
+		++mSkyCount;
+	}
+}
+
+void CubeApp::BuildObjectTextures()
+{
+	struct ot {
+		std::wstring fileName;
+		std::string name;
+	};
+	std::vector<ot> objectTextures = {
+		{ L"Textures/tile.dds", "tile" },
+	};
+
+	for (auto& oTexture : objectTextures)
+	{
+		auto tex = std::make_unique<Texture>();
+		tex->Name = oTexture.name;
+		tex->Filename = oTexture.fileName;
+		ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(), mCommandList.Get(),
+			tex->Filename.c_str(), tex->Resource, tex->UploadHeap));
+		mObjectTextureNames.emplace_back(std::move(oTexture.name));
+		mObjectTextures[tex->Name] = std::move(tex);
 		++mSkyCount;
 	}
 }
@@ -436,7 +506,7 @@ void CubeApp::Draw(const GameTimer & gt)
 {
 	auto cmdAlloc = mCurrentFrameResource->CmdListAlloc;
 	ThrowIfFailed(cmdAlloc->Reset());
-	ThrowIfFailed(mCommandList->Reset(cmdAlloc.Get(), mPSOs["wireframe"].Get()));
+	ThrowIfFailed(mCommandList->Reset(cmdAlloc.Get(), mPSOs["opaque"].Get()));
 
 	mCommandList->RSSetViewports(1, &mScreenViewport);
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -461,6 +531,8 @@ void CubeApp::Draw(const GameTimer & gt)
 		CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvSrvHeap->GetGPUDescriptorHandleForHeapStart(),
 			mCubeMapSrvOffset + (UINT)mActiveSky, mCbvSrvDescriptorSize));
 
+	DrawRenderItems(mRenderLayer[(UINT)RenderLayers::Opaque]);
+
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mRenderLayer[(UINT)RenderLayers::Skies]);
 
@@ -482,16 +554,18 @@ void CubeApp::Draw(const GameTimer & gt)
 
 void CubeApp::DrawRenderItems(const std::vector<RenderItem*>& renderItems)
 {
-	mCommandList->SetGraphicsRootDescriptorTable(mInstanceDataRootParamIndex,
+	mCommandList->SetGraphicsRootDescriptorTable(mObjectTextureRootParamIndex,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvSrvHeap->GetGPUDescriptorHandleForHeapStart(),
-			mCurrFrameIndex, mCbvSrvDescriptorSize));
-
+			mObjectTextureSrvOffset, mCbvSrvDescriptorSize));
 	for (UINT i = 0; i < (UINT)renderItems.size(); ++i) {
 		auto rItem = renderItems[i];
+		mCommandList->SetGraphicsRootDescriptorTable(mInstanceDataRootParamIndex,
+			CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvSrvHeap->GetGPUDescriptorHandleForHeapStart(),
+				(UINT)renderItems.size() * mCurrFrameIndex + i, mCbvSrvDescriptorSize));
 		mCommandList->IASetVertexBuffers(0, 1, &rItem->Geo->VertexBufferView());
 		mCommandList->IASetIndexBuffer(&rItem->Geo->IndexBufferView());
 		mCommandList->IASetPrimitiveTopology(rItem->PrimitiveTopology);
-		mCommandList->DrawIndexedInstanced(rItem->IndexCount, rItem->InstanceCount, rItem->StartIndexLocation, rItem->BaseVertexLocation, 0);
+		mCommandList->DrawIndexedInstanced(rItem->IndexCount, rItem->InstanceCount, rItem->StartIndexLocation, rItem->BaseVertexLocation, rItem->StartInstanceLocation);
 	}
 }
 
@@ -502,10 +576,9 @@ void CubeApp::UpdateInstances(const GameTimer & gt)
 	BoundingFrustum& cameraFrustum = mCamera->GetBoundingFrustum();
 	BoundingFrustum localFrustum;
 	for (auto& renderItem : mAllRenderItems) {
-
 		if (renderItem->NumFramesDirty > 0) {
-
-			int visibleInstanceCount = 0;
+			UINT visibleInstanceCount = 0;
+			UINT rItemInstances = 0;
 			for (UINT i = 0; i < (UINT)renderItem->Instances.size(); ++i) {
 
 				XMMATRIX world = XMLoadFloat4x4(&renderItem->Instances[i].World);
@@ -517,8 +590,10 @@ void CubeApp::UpdateInstances(const GameTimer & gt)
 				if (renderItem->IgnoreBoundingBox || localFrustum.Contains(renderItem->Bounds) != DirectX::DISJOINT) {
 					InstanceData data = {};
 					XMStoreFloat4x4(&data.World, XMMatrixTranspose(world));
-
-					mCurrentFrameResource->InstanceCB->CopyData(visibleInstanceCount++, data);
+					XMStoreFloat4x4(&data.TexTransform, XMMatrixTranspose(XMLoadFloat4x4(&renderItem->Instances[i].TexTransform)));
+					data.DiffuseMapIndex = renderItem->Instances[i].DiffuseMapIndex;
+					mCurrentFrameResource->RenderItemInstanceCBs[renderItem->Name]->CopyData(visibleInstanceCount++, data);
+					++rItemInstances;
 				}
 			}
 			renderItem->InstanceCount = visibleInstanceCount;

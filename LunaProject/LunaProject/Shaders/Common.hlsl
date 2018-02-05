@@ -5,7 +5,7 @@
 TextureCube gCubeMap : register(t0);
 StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
 StructuredBuffer<InstanceData> gInstanceData : register(t1);
-Texture2D gDiffuseMap[4] : register(t2);
+Texture2D gDiffuseMap : register(t2);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);

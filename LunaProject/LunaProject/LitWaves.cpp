@@ -1361,7 +1361,7 @@ void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList * cmdList, const std
 		cmdList->SetGraphicsRootDescriptorTable(3, texHandle);
 
 
-		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, ri->StartInstanceLocation);
 	}
 
 	cmdList->OMSetStencilRef(0);
