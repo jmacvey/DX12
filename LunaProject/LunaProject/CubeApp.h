@@ -61,7 +61,7 @@ private:
 	virtual void Update(const GameTimer& gt) override;
 	virtual void Draw(const GameTimer& gt) override;
 
-	void DrawRenderItems(const std::vector<RenderItem*>& renderItems);
+	void DrawRenderItems(const std::vector<RenderItem*>& renderItems, UINT instanceOffset);
 
 	void UpdateInstances(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
@@ -101,8 +101,6 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<Texture>> mObjectTextures;
 	std::vector<std::string> mCubeMapNames;
 	std::vector<std::string> mObjectTextureNames;
-	UINT mSkyCount = 0u;
-	UINT mMaxInstanceCount = 0u;
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;

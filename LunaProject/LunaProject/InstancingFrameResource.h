@@ -27,6 +27,7 @@ namespace InstancingDemo {
 		int NumFramesDirty = 3;
 
 		std::string Name;
+		std::string GeoName;
 		// geometry data
 		MeshGeometry* Geo;
 		D3D12_PRIMITIVE_TOPOLOGY PrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -40,7 +41,7 @@ namespace InstancingDemo {
 		BoundingBox Bounds;
 		bool Visible = true;
 		bool IgnoreBoundingBox = false;
-		UINT InstanceBufferOffset = 0;
+		UINT DiffuseMapIndex = 0;
 	};
 
 
@@ -49,6 +50,7 @@ namespace InstancingDemo {
 		Skulls,
 		Cars,
 		Opaque,
+		Reflectors,
 		Skies,
 		Count
 	};
