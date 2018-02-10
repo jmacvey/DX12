@@ -1,6 +1,8 @@
 ﻿  CubeApp.cpp
-c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\cubeapp.cpp(194): warning C4267: '=': conversion from 'size_t' to 'unsigned int', possible loss of data
-c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\cubeapp.cpp(195): warning C4267: '=': conversion from 'size_t' to 'unsigned int', possible loss of data
-c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\cubeapp.cpp(283): warning C4267: 'argument': conversion from 'size_t' to 'INT', possible loss of data
+c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\cubeapp.h(148): warning C4244: 'initializing': conversion from 'float' to 'UINT', possible loss of data
+c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\cubeapp.cpp(200): warning C4244: '=': conversion from 'float' to 'UINT', possible loss of data
+c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\cubeapp.cpp(238): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\cubeapp.cpp(239): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+c:\users\jmacvey\source\repos\dx12\lunaproject\lunaproject\cubeapp.cpp(720): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.exe
   LunaProject.vcxproj -> C:\Users\jmacvey\source\repos\DX12\LunaProject\Debug\LunaProject.pdb (Partial PDB)

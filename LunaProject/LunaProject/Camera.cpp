@@ -61,6 +61,21 @@ XMFLOAT3 Camera::GetLook3f() const
 	return mLook;
 }
 
+void Camera::LookAt(const XMFLOAT3& center, const XMFLOAT3& target, const XMFLOAT3& up)
+{
+	XMVECTOR T = XMLoadFloat3(&target);
+	XMVECTOR Q = XMLoadFloat3(&center);
+	XMVECTOR J = XMLoadFloat3(&up);
+	XMVECTOR w = XMVector3Normalize(T - Q); // look
+	XMVECTOR u = XMVector3Normalize(XMVector3Cross(J, w)); // right
+
+	XMStoreFloat3(&mLook, w);
+	XMStoreFloat3(&mRight, u);
+	XMStoreFloat3(&mUp, XMVector3Cross(w, u)); // up
+	XMStoreFloat3(&mPos, Q);
+	mViewDirty = true;
+}
+
 XMMATRIX Camera::View() const
 {
 	return XMLoadFloat4x4(&mView);

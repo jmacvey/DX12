@@ -9,7 +9,7 @@
 #include "InstancingFrameResource.h"
 #include <DirectXCollision.h>
 #include "SkullGeometry.h"
-#include "CarGeometry.h"
+#include "DynamicCubeMap.h"
 #include <vector>
 
 
@@ -47,6 +47,7 @@ private:
 	void BuildDescriptors();
 	void BuildInstanceDescriptors();
 	void BuildMaterials();
+	void BuildCubeAxes();
 	void CompileShadersAndInputLayout();
 	void BuildRootSignature();
 	void BuildCommonRootSignature();
@@ -54,6 +55,7 @@ private:
 	void BuildFrameResources();
 	void BuildCubeMaps();
 	void BuildObjectTextures();
+	void BuildCubeMapDsv();
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers() const;
 
@@ -61,10 +63,14 @@ private:
 	virtual void Update(const GameTimer& gt) override;
 	virtual void Draw(const GameTimer& gt) override;
 
-	void DrawRenderItems(const std::vector<RenderItem*>& renderItems, UINT instanceOffset);
+	void DrawSceneToCubeMap();
+	void DrawRenderItems(const std::vector<RenderItem*>& renderItems, UINT instanceOffset, CD3DX12_GPU_DESCRIPTOR_HANDLE* srvHandle = nullptr);
 
 	void UpdateInstances(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
+	void UpdateCubeMapPassCBs(const GameTimer& gt);
+	void UpdateLights();
+	void UpdateCubeCams(float x, float y, float z);
 
 	void MarkRenderItemsDirty();
 
@@ -74,7 +80,9 @@ private:
 	virtual void OnMouseMove(WPARAM btnState, int x, int y) override;
 	virtual void OnResize() override;
 
+	virtual void CreateRtvAndDsvDescriptorHeaps() override;
 	void OnKeyboardInput(const GameTimer& gt);
+	void AnimateSphere(RenderItem* mRenderItem, const GameTimer& gt);
 
 private:
 	std::unique_ptr<Camera> mCamera;
@@ -89,6 +97,7 @@ private:
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrentFrameResource = nullptr;
 
+	ComPtr<ID3D12Resource> mCubeMapDsv;
 	ComPtr<ID3D12DescriptorHeap> mCbvSrvHeap;
 	ComPtr<ID3D12RootSignature> mRootSignature;
 	ComPtr<ID3D12RootSignature> mCommonRootSignature;
@@ -124,7 +133,20 @@ private:
 	UINT mCubeMapSrvRootParamIndex = 0;
 	UINT mInstanceDataRootParamIndex = 0;
 	UINT mObjectTextureRootParamIndex = 0;
+	UINT mDynamicCubeMapSrvOffset = 0;
+	UINT mNumPassConstantBuffers = 7;
 	SkyType mActiveSky = SkyType::Grass;
+	float mSunPhi = XM_PI;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhCubeMapDsv;
+	std::unique_ptr<DynamicCubeMap> mDynamicCubeMap = nullptr;
+	UINT mCubeMapSize = 0;
+	DXGI_FORMAT mCubeMapFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	Camera mCubeCameras[6];
+	XMFLOAT3 mCubeAxes[6];
+	XMFLOAT3 mCenterSpherePos = { 0.0f, 15.0f, 0.0f };
+	UINT mPathRadius = 10.0f;
+	XMFLOAT4X4 spherePositions[10];
 };
 
 #endif

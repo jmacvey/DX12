@@ -26,6 +26,8 @@ public:
 	XMVECTOR GetLook() const;
 	XMFLOAT3 GetLook3f() const;
 
+	void LookAt(const XMFLOAT3& center, const XMFLOAT3& target, const XMFLOAT3& up);
+
 	XMMATRIX View() const;
 	XMMATRIX Proj() const;
 

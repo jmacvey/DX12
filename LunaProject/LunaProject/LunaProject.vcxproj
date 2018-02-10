@@ -265,6 +265,7 @@
     <ClInclude Include="BlurAppFrameResource.h" />
     <ClInclude Include="BlurFilter.h" />
     <ClInclude Include="ImageComposer.h" />
+    <ClInclude Include="DynamicCubeMap.h" />
     <ClInclude Include="Sobel.h" />
     <ClInclude Include="TessApp.h" />
     <ClInclude Include="WavesGPU.h" />
@@ -305,6 +306,7 @@
     <ClCompile Include="PickingApp.cpp" />
     <ClCompile Include="Pyramid.cpp" />
     <ClCompile Include="BlurAppFrameResource.cpp" />
+    <ClCompile Include="DynamicCubeMap.cpp" />
     <ClCompile Include="Sobel.cpp" />
     <ClCompile Include="TessApp.cpp" />
     <ClCompile Include="WavesGPU.cpp" />
